@@ -77,11 +77,11 @@
 | `python scripts/build-manifest.py --check` | PASS（15 files / 2.19 MB，与磁盘一致） |
 | 逐文件 SHA256 对照 | 42 内容一致 / 16 有意修改 / 0 非预期缺失（§1）；其中 6 个源文件原为 CRLF，仓库按 `.gitattributes` 统一归一为 LF（文本内容逐行一致） |
 | 运行时代码零改动 | `lib/*.js`、`lib/*.css`、`preview/**` 全部与 v0.2.1 字节一致 |
-| GitHub Actions | 工作流 `test`（Node 20 / 22 矩阵：check:public + npm test）；首次推送后执行 |
+| GitHub Actions | **PASS**（commit `937d4900`，Node 20 / 22 双矩阵：`check:public` + `npm test`）。首轮 CI 曾暴露「manifest 按 CRLF 工作树生成、仓库按 LF 归一」导致的 `brand/whale.svg` 字节失配；已按仓库实际字节重建 manifest（3601 → 3600 B）并复跑通过 |
 
 ## 7. 已知限制 / 未验证项（如实标注，不标 ✅）
 
 - **公开版默认「降级观感」未做真机重启人眼验收**：程序化深空渐变替代 4K 底板后的实际视觉（尤其 `breach` / `whale` 相位的云层视差缺失、终帧日期字体的 Anurati 回退）**待核实**；本地完整版（含原素材）的观感此前已由用户验收。
-- **GitHub Actions 首次运行**：仓库推送后才会实际执行，Node 20 / 22 双矩阵结果**待核实**。
+- **GitHub Actions**：已实际执行并通过（见 §6）；仓库页 Actions 中 `2362617c` 那次 failure 是修复前的首轮记录，保留可追溯。
 - **非 Windows 平台**：测试为纯 node 逻辑，理论上跨平台；但真实 DSH 宿主安装验证仅 Windows 桌面版完成（与完整版一致）。
 - 文档 `docs/*.md` 中涉及原始素材运动参数 / 像素坐标的段落保留自完整版设计记录，公开版缺底板时这些参数不参与降级渲染路径。
