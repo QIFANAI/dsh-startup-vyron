@@ -4,13 +4,13 @@
 
 ## 1. 结论
 
-- **代码 100% 公开**：`lib/` 与 `preview/` 下的运行时代码 / 样式与完整版**逐字节一致**（唯一例外是资产清单 `lib/assets/manifest.json`，见 §4）。
+- **代码 100% 公开**：`lib/` 与 `preview/` 下的运行时代码 / 样式与完整版**逐行内容一致**（6 个原 CRLF 文本文件按 `.gitattributes` 归一为 LF；唯一例外是资产清单 `lib/assets/manifest.json`，见 §4）。
 - **仅剔除 4 个无授权第三方文件**：3 张 Wallpaper Engine 壁纸派生底图 + `Anurati-Regular.otf`（个人使用授权，非 OFL）。缺失时按既有降级链运行，不破坏任何功能路径。
 - **逐文件对照**：本仓库 82 个文件 = **42 个与完整版字节一致** + **16 个有意修改**（文档口径 / 路径脱敏 / 清单重建 / 测试适配 / 元数据）+ **24 个新增**（公开仓库配套）。
 - **本地完整版基线 68 个文件**：10 个未入公开仓库 = 4 个第三方素材 + 6 个本机交付相关文件（组合包脚本与说明，见 §3）。
 - **验证**：`npm test` 577 PASS / 0 FAIL / 5 SKIP（干净仓库，无第三方素材）；`npm run check:public` 8/8 PASS；`manifest.json` 15 项 / 2,299,356 B 经 SHA256 全量复核。
 
-## 2. 逐字节一致的 42 个文件（运行时逻辑，零改动）
+## 2. 内容一致的 42 个文件（运行时逻辑，零改动；其中 6 个原 CRLF 文件按 LF 归一）
 
 包括但不限于：
 
@@ -76,7 +76,8 @@
 | `npm run check:public` | **PASS 8/8**（无 4 个第三方文件、无 tgz/zip、无本机绝对路径 / token / 私钥、manifest 覆盖与 SHA256 全量一致、package/release 口径正确） |
 | `python scripts/build-manifest.py --check` | PASS（15 files / 2.19 MB，与磁盘一致） |
 | 逐文件 SHA256 对照 | 42 内容一致 / 16 有意修改 / 0 非预期缺失（§1）；其中 6 个源文件原为 CRLF，仓库按 `.gitattributes` 统一归一为 LF（文本内容逐行一致） |
-| 运行时代码零改动 | `lib/*.js`、`lib/*.css`、`preview/**` 全部与 v0.2.1 字节一致 |
+| 运行时代码零改动 | `lib/*.js`、`lib/*.css`、`preview/**` 全部与 v0.2.1 内容一致（6 个原 CRLF 文件按 LF 归一；逐行 diff 为空） |
+| 独立验收（verifier 子代理，未参与发布） | **AUDIT PASS 10/10**：远程 root tree `e7c67b47…` == 本地 HEAD^{tree}、82/82 blob sha 全等、干净克隆 577 PASS/0 FAIL/5 SKIP、check-public 8/8、CI run `42136002160` success、tag `v0.2.1` → `bc9883c7`、Release 0 assets |
 | GitHub Actions | **PASS**（commit `937d4900`，Node 20 / 22 双矩阵：`check:public` + `npm test`）。首轮 CI 曾暴露「manifest 按 CRLF 工作树生成、仓库按 LF 归一」导致的 `brand/whale.svg` 字节失配；已按仓库实际字节重建 manifest（3601 → 3600 B）并复跑通过 |
 
 ## 7. 已知限制 / 未验证项（如实标注，不标 ✅）

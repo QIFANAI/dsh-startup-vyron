@@ -4,7 +4,7 @@ DSH（DeepSeek Harness）**启动动画 + UI 皮肤整合插件**：把「CMD\LN
 
 > **公开仓库说明（重要）**
 > 本仓库是 `dsh-startup-vyron@0.2.1` 的**源码公开镜像**。**不包含** 3 张从 Wallpaper Engine 第三方壁纸提取的 4K 底板（`hero-4k/hero-2k/poster.webp`）与 `Anurati` 字体（个人使用授权，非 OFL）——这 4 个文件共约 960 KB，**不进公开仓库**。缺失时启动动画自动降级为「程序化深空渐变」，其余功能 100% 可用；拥有原素材的用户可在本地用 `scripts/prepare-local-media.ps1` 还原原画（仅限本机自用，不得再分发）。
-> 除这 4 个文件外，代码与 `v0.2.1` 完整版逐字节一致；改动清单与验证证据见 [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md)。资产口径见 [ASSETS.md](ASSETS.md)，第三方许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+> 除这 4 个文件外，代码与 `v0.2.1` 完整版**逐行内容一致**（6 个原 CRLF 文本文件按 `.gitattributes` 归一为 LF，见 [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md) §2）；改动清单与验证证据见同文件。资产口径见 [ASSETS.md](ASSETS.md)，第三方许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ## 功能
 

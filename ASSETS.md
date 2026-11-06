@@ -48,7 +48,7 @@ npm test
 
 > **为什么这样处理**：这 3 张底板是 Wallpaper Engine 第三方壁纸的派生画面（含《三角洲行动》游戏美术），
 > Anurati 的授权是个人使用（并非 SIL OFL）。公开托管 = 二次分发，与本项目自己的许可声明冲突，
-> 也有 DMCA 下架风险。除这 4 个文件外，公开仓库与 `v0.2.1` 完整版源码**逐字节一致**
+> 也有 DMCA 下架风险。除这 4 个文件外，公开仓库与 `v0.2.1` 完整版源码**逐行内容一致**（6 个原 CRLF 文本文件按 `.gitattributes` 归一为 LF）
 > （对照表见 [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md)）。
 
 ## 3. 构建 / 校验入口
