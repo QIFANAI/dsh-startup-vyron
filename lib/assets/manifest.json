@@ -1,9 +1,9 @@
 {
   "name": "dsh-startup-vyron",
-  "generatedAt": "2026-11-06T08:09:58+0800",
+  "generatedAt": "2026-11-06T08:18:34+0800",
   "root": "lib/assets",
   "fileCount": 15,
-  "totalBytes": 2299356,
+  "totalBytes": 2299355,
   "files": [
     {
       "path": "audio/handoff.wav",
@@ -46,8 +46,8 @@
     {
       "path": "brand/whale.svg",
       "kind": "vector",
-      "bytes": 3601,
-      "sha256": "ea4ff2cd4c8e37423ae93ddd77826b0b631831e244f60adcb29a3151c5631e29"
+      "bytes": 3600,
+      "sha256": "df9399eba0eaf10d9ce3511f392deac00b20cf7c56e6c6abe782784dbac87118"
     },
     {
       "path": "brand/wordmark.svg",
