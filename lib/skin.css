@@ -1,0 +1,2375 @@
+/* ============================================================================
+ * VYRON · 星海鲸航 — DSH 客户端皮肤（lib/skin.css）
+ * ----------------------------------------------------------------------------
+ * 唯一设计权威源：docs/design-spec.md §2.1 调色板 / §4 皮肤规格 / §7 模块契约
+ * 本文件自包含（不引用任何图片/字体/外部文件），全部选择器以 html.dsh-vyron-skin
+ * 作用域开头 —— off 档 html 上没有该 class，本文件零生效。
+ *
+ * 四档（client.js 注入 html class，见 §7）：
+ *   accent ：只做设计 token 覆盖（深空色阶 + DSH 蓝强调 + 云白文字），无装饰层
+ *   full   ：accent + 终端 HUD 装饰层（顶栏日轨条/四角角标/侧栏 micrographics/
+ *            session ledger 标签/输入框声呐环），全部 pointer-events:none、零布局位移
+ *   glass  ：full + 动态星海背景 #dsh-vyron-ambient（12 层纯 CSS）+ 整窗毛玻璃
+ *            + 可调通透度 --vyron-glass-alpha
+ *   （off  ：原版宿主，零样式）
+ * 三主题：html[data-vyron-theme="orbit|terra|abyss"]（client.js 在 skin≠off 时写入，
+ *         accent/full/glass 三档都吃主题色；off 时移除）
+ * 降级：.dsh-vyron-skin--static（skinMotion=false / reducedMotion / ≤4 线程）
+ *      .dsh-vyron-skin--paused（页面隐藏）
+ *      .dsh-vyron-skin--noblur（宿主不支持 backdrop-filter）
+ *      另有纯 CSS 兜底：prefers-reduced-motion / prefers-reduced-transparency /
+ *      @supports not (backdrop-filter)
+ *
+ * 宿主事实（app.asar 提取，@deepseek-ai/dsh-web-frontend 0.2.1-rc.5，与 elisa 同版）：
+ *   - 明暗主题 = 运行时给 <body> 加 data-ds-dark-theme（浅色宿主 = 无该属性，
+ *     CSS 里没有 prefers-color-scheme 分支）。故 light 判定用
+ *     body:not([data-ds-dark-theme])，不需要 client.js 传 light 标记。
+ *   - 设计 token 声明点：ui-theme 把 77 个 --dsw-static-* 与 113 个 alias/specific
+ *     token 直接声明在 body / body[data-ds-dark-theme] 上；本文件把覆盖同时落 html 与
+ *     body（html.dsh-vyron-skin body 特异性 (0,1,2) 高于宿主 body[data-ds-dark-theme]
+ *     的 (0,1,1)，可稳定覆盖并向下继承）。
+ *   - 已核实稳定钩子：`#root header[data-window-drag]`、`[role="tablist"] [role="tab"]`、
+ *     `[data-composer-seat]`、`[data-composer-card]`（输入卡，宿主已 position:relative）、
+ *     `[class*="sidebarCol" i]`、`[role="treeitem"][aria-selected="true"]`、
+ *     `[data-conversation-scroll]`、`dialog` / `[class*="_mask" i]` / `[class*="_dialog" i]`。
+ *
+ * 硬约束（design-spec §4.4）：
+ *   - 不改字号 / 行高 / 字体栈 / 字重 —— 宿主正文一个字都不碰；等宽字体只用于
+ *     伪元素装饰文字（本文件没有 @font-face，装饰统一用系统等宽栈，单文件自包含）。
+ *   - 不改布局：宿主元素只写颜色/背景/边框/阴影/滤镜；宽高/内边距/定位只出现在
+ *     本皮肤新增的装饰伪元素与 fixed 装饰层（均为 pointer-events:none）。
+ *   - 所有新增覆盖层 pointer-events:none，z-index ≤ 901（低于宿主弹窗 1000+）。
+ *   - 语义色不挪用：error 仍红、warn 仍琥珀；success 用生物光青绿点缀（§2.1）。
+ * ========================================================================== */
+
+/* ============================================================================
+ * 1. 皮肤私有调色板（§2.1 锁定值，用 --v-* 暴露；只在本皮肤作用域内可见）
+ * ========================================================================== */
+html.dsh-vyron-skin,
+html.dsh-vyron-skin body {
+  /* ── 1.1 §2.1 设计调色板（唯一取值来源，本文件其他颜色均由这些派生）──── */
+  --v-space: #050a16;      /* 太空底：黑场、皮肤底 */
+  --v-space-2: #0a1424;    /* 深空层：面板/玻璃基色 */
+  --v-ocean: #1d4f8c;      /* 地球海：主蓝、链接 */
+  --v-rim: #57a8ff;        /* 大气边缘：边缘光、焦点环 */
+  --v-cloud: #eef2f6;      /* 云白：深色皮肤主文字 */
+  --v-cream: #f1e6d2;      /* 云暖：高光文字、日期 */
+  --v-sand: #c9a46a;       /* 沙漠暖：次强调、警示 */
+  --v-steel: #8b9aab;      /* 平台钢：次级文字、分隔线 */
+  --v-brand: #4d6bfe;      /* DSH 蓝：主强调/按钮/选中 */
+  --v-ink-1: #e8e9ea;      /* 终端灰阶 1（Material A 原值） */
+  --v-ink-2: #a3a6aa;      /* 终端灰阶 2 */
+  --v-ink-3: #85888c;      /* 终端灰阶 3 */
+  --v-bio: #7ef0d4;        /* 生物光青：鲸尾迹/扫描线/成功点缀 */
+
+  /* ── 1.2 通透度换算（client.js 注入 --vyron-glass-alpha，0–100，50=标准）────
+   * 值越大越通透：0 → 1.45（最实）/ 50 → 1.0 / 100 → 0.55（最透）。
+   * 若 client.js 直接注入归一化系数 --vyron-glass-a（0.55–1.45），则优先使用它。
+   * alpha>1 由浏览器按 [0,1] 自动钳制（同 elisa v0.6 策略）。 */
+  /* client.js 当前注入：--vyron-glass-t = 原始 0–100 通透度；--vyron-glass-alpha = 归一化
+   * 系数 0.55–1.45（t=50 → 1.0，t 越大越透）；--vyron-glass-a 为契约别名（存在则优先）。
+   * 三者取其一即可，本表达式对三种注入方式都成立。 */
+  --vyron-a: var(--vyron-glass-a, calc(1.45 - 0.009 * var(--vyron-glass-t, 50)));
+
+  /* ── 1.3 深色宿主 token 变量（orbit 缺省；terra/abyss 在 §4 覆盖）──────── */
+  --vy-bg-0: #03060d;
+  --vy-bg-base: var(--v-space);
+  --vy-doc-preview: #03060e;
+  --vy-layer-1: var(--v-space-2);
+  --vy-layer-2: #0e1a2e;
+  --vy-layer-3: #13233c;
+  --vy-platform: #0b1728;
+  --vy-multi: #16263e;
+  --vy-overlay: #1a2c47;
+  --vy-sidebar: #040911;
+  --vy-input: #0b1626;
+  --vy-bubble: #0d1a2c;
+  --vy-bubble-hi: #16283f;
+  --vy-menu: 10, 20, 36;          /* RGB 三元组（玻璃档按 alpha 合成） */
+  --vy-menu-alpha: 0.78;
+  --vy-menu-group: 12, 23, 41;
+  --vy-selector: #16283f;
+  --vy-tip: #16283f;
+  --vy-login: #070e1b;
+  --vy-nav-active: #132640;
+  --vy-nav-accent: #1b3352;
+  --vy-nav-hover: #101f33;
+  --vy-card: #0c1729;
+
+  --vy-label-1: var(--v-cloud);
+  --vy-label-2: #b3c1d1;
+  --vy-label-3: #93a3b6;
+  --vy-label-cap: #8496ab;
+  --vy-label-dim: #3f4f63;
+  --vy-label-bluish: #eaf2ff;
+  --vy-label-1-dim: #dbe4ee;
+  --vy-fg: var(--v-space);
+  --vy-label-inverted: #16243a;
+
+  --vy-brand: var(--v-brand);
+  --vy-rim: var(--v-rim);
+  --vy-link: #7aaaff;
+  --vy-business: #6f9bff;
+  --vy-business-ter: #14294a;
+  --vy-cream: var(--v-cream);
+  --vy-sand: var(--v-sand);
+  --vy-steel: var(--v-steel);
+  --vy-bio: var(--v-bio);
+  --vy-success: #34d399;
+  --vy-success-2: var(--v-bio);
+  --vy-success-ter: #10362c;
+  --vy-warn: #f5b13d;
+  --vy-warn-2: #f7c76a;
+  --vy-warn-label: #e8b25e;
+  --vy-warn-ter: #33280f;
+  --vy-error: #f25a5a;
+  --vy-error-2: #ff8a8a;
+  --vy-idle: #5f7389;
+
+  --vy-code-bg: #070d19;
+  --vy-code-banner: #0b1626;
+  --vy-code-sel: #16283f;
+  --vy-code-unsel: var(--v-space-2);
+  --vy-inline: #0f1f33;
+  --vy-md-placeholder: #0c1729;
+  --vy-md-tag: #0d1a2c;
+  --vy-citation: #12233a;
+
+  --vy-sb-1: #22354d;
+  --vy-sb-2: #2f4a68;
+  --vy-sb-h1: #3f668f;
+  --vy-sb-h2: var(--v-brand);
+  --vy-toast: #16283f;
+  --vy-tooltip: #1a2c47;
+  --vy-switch: #b3c1d1;
+  --vy-tooltip-label: #eef2f6;   /* tooltip 明暗宿主都是深底浅字（宿主设计） */
+  --vy-glass-label-2: #cfdbe8;
+  --vy-glass-label-3: #b0c0d3;
+  --vy-glass-label-cap: #a3b6ca;
+  --vy-deco-rgb: 87, 168, 255;   /* 装饰主色（HUD 刻度/角标/代码导轨；主题可换） */
+  --vy-deco-2-rgb: 126, 240, 212; /* 装饰辅色（当前项/tab/ledger 点） */
+  --vy-bio-rgb: 126, 240, 212;    /* 生物光（当前项高光） */
+
+  /* 描边 alpha（RGB 用 --vy-ink-rgb，主题可换色相） */
+  --vy-ink-rgb: 238, 242, 246;
+  --vy-border-1: rgba(var(--vy-ink-rgb), 0.06);
+  --vy-border-2: rgba(var(--vy-ink-rgb), 0.11);
+  --vy-border-3: rgba(var(--vy-ink-rgb), 0.17);
+  --vy-border-4: rgba(var(--vy-ink-rgb), 0.25);
+  --vy-hover: rgba(87, 168, 255, 0.08);
+  --vy-hover-solid: #13233a;
+  --vy-active: rgba(87, 168, 255, 0.14);
+  --vy-hover-brand: rgba(77, 107, 254, 0.22);
+  --vy-hover-danger: rgba(242, 90, 90, 0.16);
+  --vy-skeleton: rgba(238, 242, 246, 0.06);
+  --vy-shimmer: color-mix(in srgb, #ffffff 42%, transparent);
+  --vy-think-grad: linear-gradient(180deg, var(--v-space-2) 20.19%, rgba(10, 20, 36, 0) 100%);
+  --vy-think-select: linear-gradient(180deg, #16283f 20.19%, rgba(22, 40, 63, 0) 100%);
+
+  /* ── 1.4 浅色宿主 token 变量（body 无 data-ds-dark-theme 时生效）───────── */
+  --vy-l-bg-0: #e4edf7;
+  --vy-l-bg-base: #eef4fb;
+  --vy-l-doc-preview: #f6fafd;
+  --vy-l-layer-1: #ffffff;
+  --vy-l-layer-2: #ffffff;
+  --vy-l-layer-3: #f6fafd;
+  --vy-l-platform: #f4f8fd;
+  --vy-l-multi: #eaf1f9;
+  --vy-l-overlay: #e2ebf6;
+  --vy-l-sidebar: #e7eff8;
+  --vy-l-input: #ffffff;
+  --vy-l-bubble: #eaf2fb;
+  --vy-l-bubble-hi: #dce8f6;
+  --vy-l-menu: 255, 255, 255;
+  --vy-l-menu-alpha: 0.86;
+  --vy-l-menu-group: 255, 255, 255;
+  --vy-l-selector: #dce8f6;
+  --vy-l-tip: #eaf1f9;
+  --vy-l-login: #ffffff;
+  --vy-l-nav-active: #dbe8f7;
+  --vy-l-nav-accent: #cfe0f6;
+  --vy-l-nav-hover: #e8f0fa;
+  --vy-l-card: #ffffff;
+
+  --vy-l-label-1: #0a1628;
+  --vy-l-label-2: #33465c;
+  --vy-l-label-3: #465a72;
+  --vy-l-label-cap: #566b84;
+  --vy-l-label-dim: #b9c9da;
+  --vy-l-label-bluish: #102a52;
+  --vy-l-fg: #f7fbff;
+  --vy-l-label-inverted: #ffffff;
+
+  --vy-l-brand: #3b55d9;
+  --vy-l-rim: #2f7fd8;
+  --vy-l-link: #2f4fd6;
+  --vy-l-business: #2f4fd6;
+  --vy-l-business-ter: #dbe7fb;
+  --vy-l-cream: #7a5a26;
+  --vy-l-sand: #8a6423;
+  --vy-l-steel: #5b7089;
+  --vy-l-bio: #0f8a7e;
+  --vy-l-success: #0a7a53;
+  --vy-l-success-2: #0f8a5f;
+  --vy-l-success-ter: #d7f0e4;
+  --vy-l-warn: #96530a;
+  --vy-l-warn-2: #b26810;
+  --vy-l-warn-label: #8a4e00;
+  --vy-l-warn-ter: #f8ead2;
+  --vy-l-error: #c62828;
+  --vy-l-error-2: #a71d1d;
+  --vy-l-idle: #6f849c;
+
+  --vy-l-code-bg: #f3f7fc;
+  --vy-l-code-banner: #e8f0f8;
+  --vy-l-code-sel: #dce8f6;
+  --vy-l-code-unsel: #f3f7fc;
+  --vy-l-inline: #edf3f9;
+  --vy-l-md-placeholder: #eef4fa;
+  --vy-l-md-tag: #eaf1f8;
+  --vy-l-citation: #e3edf8;
+
+  --vy-l-sb-1: #c3d1e2;
+  --vy-l-sb-2: #9fb3ca;
+  --vy-l-sb-h1: #8fa7c4;
+  --vy-l-sb-h2: #3b55d9;
+  --vy-l-toast: #0f1e33;
+  --vy-l-tooltip: #0f1e33;
+  --vy-l-switch: #6f849c;
+
+  --vy-l-ink-rgb: 10, 22, 40;
+  --vy-l-border-1: rgba(var(--vy-l-ink-rgb), 0.08);
+  --vy-l-border-2: rgba(var(--vy-l-ink-rgb), 0.13);
+  --vy-l-border-3: rgba(var(--vy-l-ink-rgb), 0.19);
+  --vy-l-border-4: rgba(var(--vy-l-ink-rgb), 0.27);
+  --vy-l-hover: rgba(29, 79, 140, 0.07);
+  --vy-l-hover-solid: #e3edf8;
+  --vy-l-active: rgba(29, 79, 140, 0.12);
+  --vy-l-hover-brand: rgba(59, 85, 217, 0.16);
+  --vy-l-hover-danger: rgba(198, 40, 40, 0.09);
+  --vy-l-skeleton: rgba(10, 22, 40, 0.08);
+  --vy-l-think-grad: linear-gradient(180deg, #ffffff 20.19%, rgba(255, 255, 255, 0) 100%);
+  --vy-l-think-select: linear-gradient(180deg, #eef4fb 20.19%, rgba(238, 244, 251, 0) 100%);
+
+  /* ── 1.5 玻璃档表面 RGB 基色（深色；alpha 在 §2.3 乘 --vyron-a）───────── */
+  --vy-g-base: 5, 10, 22;
+  --vy-g-doc: 3, 6, 14;
+  --vy-g-l1: 10, 20, 36;
+  --vy-g-l2: 14, 26, 46;
+  --vy-g-l3: 19, 35, 60;
+  --vy-g-platform: 11, 23, 40;
+  --vy-g-multi: 22, 38, 62;
+  --vy-g-overlay: 26, 44, 71;
+  --vy-g-sidebar: 4, 9, 17;
+  --vy-g-input: 11, 22, 38;
+  --vy-g-bubble: 13, 26, 44;
+  --vy-g-bubble-hi: 22, 40, 63;
+  --vy-g-menu: 10, 20, 36;
+  --vy-g-menu-group: 12, 23, 41;
+  --vy-g-selector: 22, 40, 63;
+  --vy-g-tip: 22, 40, 63;
+  --vy-g-login: 7, 14, 27;
+  --vy-g-card: 12, 23, 41;
+  --vy-g-nav-active: 19, 38, 64;
+  --vy-g-nav-accent: 27, 51, 82;
+  --vy-g-nav-hover: 16, 31, 51;
+  --vy-g-sb-1: 238, 242, 246;
+  --vy-g-sb-2: 238, 242, 246;
+  --vy-g-scrollbar: 238, 242, 246;
+  --vy-g-mask: 0, 0, 0;
+  --vy-g-toast: 22, 40, 63;
+  --vy-g-tooltip: 26, 44, 71;
+
+  /* ── 1.6 浅色玻璃档表面 RGB 基色（浅色宿主 glass）────────────────────── */
+  --vy-lg-base: 238, 244, 251;
+  --vy-lg-doc: 246, 250, 253;
+  --vy-lg-l1: 255, 255, 255;
+  --vy-lg-l2: 255, 255, 255;
+  --vy-lg-l3: 246, 250, 253;
+  --vy-lg-platform: 244, 248, 253;
+  --vy-lg-multi: 234, 241, 249;
+  --vy-lg-overlay: 226, 235, 246;
+  --vy-lg-sidebar: 231, 239, 248;
+  --vy-lg-input: 255, 255, 255;
+  --vy-lg-bubble: 234, 242, 251;
+  --vy-lg-bubble-hi: 220, 232, 246;
+  --vy-lg-menu: 255, 255, 255;
+  --vy-lg-menu-group: 255, 255, 255;
+  --vy-lg-selector: 220, 232, 246;
+  --vy-lg-tip: 234, 241, 249;
+  --vy-lg-login: 255, 255, 255;
+  --vy-lg-card: 255, 255, 255;
+  --vy-lg-nav-active: 219, 232, 247;
+  --vy-lg-nav-accent: 207, 224, 246;
+  --vy-lg-nav-hover: 232, 240, 250;
+  --vy-lg-sb-1: 10, 22, 40;
+  --vy-lg-sb-2: 10, 22, 40;
+  --vy-lg-scrollbar: 10, 22, 40;
+  --vy-lg-mask: 8, 16, 30;
+  --vy-lg-toast: 15, 30, 51;
+  --vy-lg-tooltip: 15, 30, 51;
+
+  /* ── 1.7 星海背景配色（RGB 三元组；terra/abyss 在 §4 覆盖）────────────── */
+  --vy-a1: 87, 168, 255;      /* 大气青蓝：主光斑/边缘光 */
+  --vy-a2: 29, 79, 140;       /* 地球海：深空蓝 */
+  --vy-a3: 126, 240, 212;     /* 生物光：点色/扫描线 */
+  --vy-warm: 241, 230, 210;   /* 云暖：高光扫过 */
+  --vy-ab0: #071224;          /* 背景顶色 */
+  --vy-ab1: #050a16;          /* 背景中色 */
+  --vy-ab2: #03060d;          /* 背景底色 */
+  --vy-sheen-rgb: 241, 230, 210;
+  --vy-earth-rgb: 87, 168, 255;
+  --vy-sea-rgb: 87, 168, 255;
+  --vy-cloud-rgb: 29, 79, 140;
+  --vy-star-rgb: 238, 242, 246;
+  /* 输入框声呐环三色（conic 渐变用 RGB 三元组，主题可覆盖） */
+  --vy-ring-a: 87, 168, 255;
+  --vy-ring-b: 241, 230, 210;
+  --vy-ring-c: 126, 240, 212;
+
+  /* 浅色宿主（昼面）背景配色 */
+  --vy-la1: 47, 127, 216;
+  --vy-la2: 29, 79, 140;
+  --vy-la3: 15, 138, 126;
+  --vy-lwarm: 201, 164, 106;
+  --vy-lab0: #dce9f8;
+  --vy-lab1: #eaf2fb;
+  --vy-lab2: #f4f9fe;
+  --vy-lsheen-rgb: 255, 245, 224;
+  --vy-learth-rgb: 47, 127, 216;
+  --vy-lsea-rgb: 47, 127, 216;
+  --vy-lcloud-rgb: 255, 255, 255;
+}
+
+/* ============================================================================
+ * 2.1 深色宿主：113 个 --dsw-alias-* 全覆盖（+2 个 settings-card 扩展 token）
+ *     覆盖点同时落 html 与 body；html.dsh-vyron-skin body 特异性 (0,1,2) 高于
+ *     宿主 body[data-ds-dark-theme] 的 (0,1,1)，稳定覆盖并向下继承。
+ *     表中 113 项与 ui-theme 0.2.1-rc.5 的 alias 层一一对应（无遗漏/无多余，
+ *     由 _tools 断言校验）。
+ * ========================================================================== */
+html.dsh-vyron-skin,
+html.dsh-vyron-skin body {
+  --dsw-alias-bg-base: var(--vy-bg-base);
+  --dsw-alias-bg-document-preview: var(--vy-doc-preview);
+  --dsw-alias-bg-document-selection: rgba(77, 107, 254, 0.34);
+  --dsw-alias-label-document-preview: #c7d4e3;
+  --dsw-alias-bg-layer-1: var(--vy-layer-1);
+  --dsw-alias-bg-layer-2: var(--vy-layer-2);
+  --dsw-alias-bg-layer-3: var(--vy-layer-3);
+  --dsw-alias-bg-mask-1: rgba(0, 0, 0, 0.55);
+  --dsw-alias-bg-mask-2: rgba(0, 0, 0, 0.30);
+  --dsw-alias-bg-mask-3: rgba(0, 0, 0, 0.65);
+  --dsw-alias-bg-mask-photo: rgba(0, 0, 0, 0.90);
+  --dsw-alias-bg-mask-drop: rgba(16, 27, 45, 0.72);
+  --dsw-alias-bg-module-platform: var(--vy-platform);
+  --dsw-alias-bg-multi-select: var(--vy-multi);
+  --dsw-alias-bg-overlay: var(--vy-overlay);
+  --dsw-alias-bg-skeleton: var(--vy-skeleton);
+  --dsw-alias-border-inverted2: transparent;
+  --dsw-alias-border-inverted: transparent;
+  --dsw-alias-border-l1: var(--vy-border-1);
+  --dsw-alias-border-l2-darkmode-thin: var(--vy-border-1);
+  --dsw-alias-border-l2: var(--vy-border-2);
+  --dsw-alias-border-l3: var(--vy-border-3);
+  --dsw-alias-border-l4: var(--vy-border-4);
+  --dsw-alias-brand-primary-invert: var(--vy-fg);
+  --dsw-alias-brand-primary-new-colorprimary-new-color: var(--vy-brand);
+  --dsw-alias-brand-primary: var(--v-cloud);
+  --dsw-alias-brand-text: var(--v-cloud);
+  --dsw-alias-button-contrast-fill: var(--v-cloud);
+  --dsw-alias-button-elevated-fill: var(--vy-layer-3);
+  --dsw-alias-button-floating-fill: var(--vy-card);
+  --dsw-alias-button-floating-hover: var(--vy-nav-hover);
+  --dsw-alias-button-ghost-active-border: #3f5a7a;
+  --dsw-alias-button-ghost-active-fill: var(--vy-nav-active);
+  --dsw-alias-button-ghost-active-hover: var(--vy-nav-accent);
+  --dsw-alias-button-info-fill: var(--vy-brand);
+  --dsw-alias-button-info-hover: color-mix(in srgb, var(--vy-brand) 82%, #ffffff);
+  --dsw-alias-button-primary-dimmed: #26364a;
+  --dsw-alias-button-primary-fill: var(--v-cloud);
+  --dsw-alias-button-primary-hover: #d7e1ec;
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(4, 9, 17, 0.42);
+  --dsw-alias-button-tool-bar-fill: rgba(90, 120, 160, 0.32);
+  --dsw-alias-button-tool-bar-hover: rgba(90, 120, 160, 0.48);
+  --dsw-alias-interactive-bg-active: var(--vy-active);
+  --dsw-alias-interactive-bg-hover-accent: var(--vy-hover-brand);
+  --dsw-alias-interactive-bg-hover-danger: var(--vy-hover-danger);
+  --dsw-alias-interactive-bg-hover-solid: var(--vy-hover-solid);
+  --dsw-alias-interactive-bg-hover: var(--vy-hover);
+  --dsw-alias-label-caption: var(--vy-label-cap);
+  --dsw-alias-label-deep-diving: color-mix(in srgb, var(--vy-brand) 55%, var(--vy-steel));
+  --dsw-alias-label-deep-diving-shimmer: color-mix(in srgb, var(--vy-rim) 65%, var(--vy-brand));
+  --dsw-alias-label-dimmed: var(--vy-label-dim);
+  --dsw-alias-label-primary-bluish: var(--vy-label-bluish);
+  --dsw-alias-label-primary-dimmed: var(--vy-label-1-dim);
+  --dsw-alias-label-primary-foreground: var(--vy-fg);
+  --dsw-alias-label-primary-inverted: var(--vy-label-inverted);
+  --dsw-alias-label-primary: var(--vy-label-1);
+  --dsw-alias-label-secondary: var(--vy-label-2);
+  --dsw-alias-label-shimmer: var(--vy-shimmer);
+  --dsw-alias-label-tertiary: var(--vy-label-3);
+  --dsw-alias-menu-icon: var(--vy-label-1-dim);
+  --dsw-alias-link: var(--vy-link);
+  --dsw-alias-markdown-citation: var(--vy-citation);
+  --dsw-alias-markdown-code-block-banner: var(--vy-code-banner);
+  --dsw-alias-markdown-code-block: var(--vy-code-bg);
+  --dsw-alias-markdown-code-segment-selected: var(--vy-code-sel);
+  --dsw-alias-markdown-code-segment-unselected: var(--vy-code-unsel);
+  --dsw-alias-markdown-inline-code: var(--vy-inline);
+  --dsw-alias-markdown-placeholder: var(--vy-md-placeholder);
+  --dsw-alias-markdown-tag: var(--vy-md-tag);
+  --dsw-alias-scrollbar-bg-l1: var(--vy-sb-1);
+  --dsw-alias-scrollbar-bg-l2: var(--vy-sb-2);
+  --dsw-alias-scrollbar-hover-l1: var(--vy-sb-h1);
+  --dsw-alias-scrollbar-hover-l2: var(--vy-sb-h2);
+  --dsw-alias-state-business-primary: var(--vy-business);
+  --dsw-alias-state-business-tertiary: var(--vy-business-ter);
+  --dsw-alias-code-diff-added: rgba(52, 211, 153, 0.16);
+  --dsw-alias-code-diff-deleted: rgba(242, 90, 90, 0.16);
+  --dsw-alias-file-diff-added-bg: #1b3025;
+  --dsw-alias-file-diff-added-gutter: #122018;
+  --dsw-alias-file-diff-added-marker: #41c977;
+  --dsw-alias-file-diff-deleted-bg: #341d1a;
+  --dsw-alias-file-diff-deleted-gutter: #241210;
+  --dsw-alias-file-diff-deleted-marker: #fa423e;
+  --dsw-alias-state-error-primary: var(--vy-error);
+  --dsw-alias-state-error-secondary: var(--vy-error-2);
+  --dsw-alias-state-idle-primary: var(--vy-idle);
+  --dsw-alias-state-success-primary: var(--vy-success);
+  --dsw-alias-state-success-secondary: var(--vy-success-2);
+  --dsw-alias-state-success-tertiary: var(--vy-success-ter);
+  --dsw-alias-state-warn-label: var(--vy-warn-label);
+  --dsw-alias-state-warn-primary: var(--vy-warn);
+  --dsw-alias-state-warn-secondary: var(--vy-warn-2);
+  --dsw-alias-state-warn-tertiary: var(--vy-warn-ter);
+  --dsw-alias-switch-thumb: var(--vy-switch);
+  --dsw-alias-toast-bg: var(--vy-toast);
+  --dsw-alias-toast-label: var(--v-cloud);
+  --dsw-alias-tooltip-bg: var(--vy-tooltip);
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--vy-tooltip), #ffffff 18%);
+  --dsw-alias-turn-trigger-bg: var(--vy-hover);
+  --dsw-alias-turn-trigger-bg-hover: var(--vy-active);
+  --dsw-specific-bubble-highlight: var(--vy-bubble-hi);
+  --dsw-specific-bubble: var(--vy-bubble);
+  --dsw-specific-input-major: var(--vy-input);
+  --dsw-specific-login-input: var(--vy-login);
+  --dsw-menu-surface-fill: rgba(var(--vy-menu), var(--vy-menu-alpha));
+  --dsw-alias-menu-group-header-fill: rgba(var(--vy-menu-group), 0.95);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--vy-selector);
+  --dsw-specific-sidebar-fill: var(--vy-sidebar);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--vy-nav-accent);
+  --dsw-specific-sidebar-nav-item-active: var(--vy-nav-active);
+  --dsw-specific-sidebar-nav-item-hover: var(--vy-nav-hover);
+  --dsw-specific-tip: var(--vy-tip);
+  --dsw-alias-settings-card-fill: var(--vy-card);
+  --dsw-alias-settings-card-stroke: var(--vy-border-4);
+}
+
+/* ============================================================================
+ * 2.2 浅色宿主：同一套 113 个 --dsw-alias-* 的可读映射（深字浅底）
+ *     判定依据：宿主明暗 = body 上有没有 data-ds-dark-theme（ui-theme 运行时
+ *     写入）。浅色宿主无该属性，本块特异性 (0,2,2) 高于 §2.1 的 (0,1,2)。
+ * ========================================================================== */
+html.dsh-vyron-skin body:not([data-ds-dark-theme]) {
+  --dsw-alias-bg-base: var(--vy-l-bg-base);
+  --dsw-alias-bg-document-preview: var(--vy-l-doc-preview);
+  --dsw-alias-bg-document-selection: rgba(59, 85, 217, 0.18);
+  --dsw-alias-label-document-preview: #3a4f68;
+  --dsw-alias-bg-layer-1: var(--vy-l-layer-1);
+  --dsw-alias-bg-layer-2: var(--vy-l-layer-2);
+  --dsw-alias-bg-layer-3: var(--vy-l-layer-3);
+  --dsw-alias-bg-mask-1: rgba(8, 16, 30, 0.42);
+  --dsw-alias-bg-mask-2: rgba(8, 16, 30, 0.22);
+  --dsw-alias-bg-mask-3: rgba(8, 16, 30, 0.56);
+  --dsw-alias-bg-mask-photo: rgba(8, 16, 30, 0.88);
+  --dsw-alias-bg-mask-drop: rgba(255, 255, 255, 0.78);
+  --dsw-alias-bg-module-platform: var(--vy-l-platform);
+  --dsw-alias-bg-multi-select: var(--vy-l-multi);
+  --dsw-alias-bg-overlay: var(--vy-l-overlay);
+  --dsw-alias-bg-skeleton: var(--vy-l-skeleton);
+  --dsw-alias-border-inverted2: transparent;
+  --dsw-alias-border-inverted: transparent;
+  --dsw-alias-border-l1: var(--vy-l-border-1);
+  --dsw-alias-border-l2-darkmode-thin: var(--vy-l-border-1);
+  --dsw-alias-border-l2: var(--vy-l-border-2);
+  --dsw-alias-border-l3: var(--vy-l-border-3);
+  --dsw-alias-border-l4: var(--vy-l-border-4);
+  --dsw-alias-brand-primary-invert: var(--vy-l-label-1);
+  --dsw-alias-brand-primary-new-colorprimary-new-color: var(--vy-l-brand);
+  --dsw-alias-brand-primary: var(--vy-l-label-1);
+  --dsw-alias-brand-text: var(--vy-l-label-1);
+  --dsw-alias-button-contrast-fill: var(--vy-l-label-1);
+  --dsw-alias-button-elevated-fill: var(--vy-l-layer-1);
+  --dsw-alias-button-floating-fill: var(--vy-l-card);
+  --dsw-alias-button-floating-hover: var(--vy-l-nav-hover);
+  --dsw-alias-button-ghost-active-border: #8ba3bf;
+  --dsw-alias-button-ghost-active-fill: var(--vy-l-layer-3);
+  --dsw-alias-button-ghost-active-hover: var(--vy-l-multi);
+  --dsw-alias-button-info-fill: var(--vy-l-brand);
+  --dsw-alias-button-info-hover: color-mix(in srgb, var(--vy-l-brand) 84%, #000000);
+  --dsw-alias-button-primary-dimmed: var(--vy-l-label-dim);
+  --dsw-alias-button-primary-fill: var(--vy-l-label-1);
+  --dsw-alias-button-primary-hover: #22344d;
+  --dsw-alias-button-tool-bar-fill-invisible: rgba(255, 255, 255, 0.5);
+  --dsw-alias-button-tool-bar-fill: rgba(29, 79, 140, 0.14);
+  --dsw-alias-button-tool-bar-hover: rgba(29, 79, 140, 0.22);
+  --dsw-alias-interactive-bg-active: var(--vy-l-active);
+  --dsw-alias-interactive-bg-hover-accent: var(--vy-l-hover-brand);
+  --dsw-alias-interactive-bg-hover-danger: var(--vy-l-hover-danger);
+  --dsw-alias-interactive-bg-hover-solid: var(--vy-l-hover-solid);
+  --dsw-alias-interactive-bg-hover: var(--vy-l-hover);
+  --dsw-alias-label-caption: var(--vy-l-label-cap);
+  --dsw-alias-label-deep-diving: color-mix(in srgb, var(--vy-l-brand) 62%, #22344d);
+  --dsw-alias-label-deep-diving-shimmer: color-mix(in srgb, var(--vy-l-brand) 45%, #7f95ad);
+  --dsw-alias-label-dimmed: var(--vy-l-label-dim);
+  --dsw-alias-label-primary-bluish: var(--vy-l-label-bluish);
+  --dsw-alias-label-primary-dimmed: #22344d;
+  --dsw-alias-label-primary-foreground: var(--vy-l-fg);
+  --dsw-alias-label-primary-inverted: var(--vy-l-label-inverted);
+  --dsw-alias-label-primary: var(--vy-l-label-1);
+  --dsw-alias-label-secondary: var(--vy-l-label-2);
+  --dsw-alias-label-shimmer: rgba(10, 22, 40, 0.28);
+  --dsw-alias-label-tertiary: var(--vy-l-label-3);
+  --dsw-alias-menu-icon: #22344d;
+  --dsw-alias-link: var(--vy-l-link);
+  --dsw-alias-markdown-citation: var(--vy-l-citation);
+  --dsw-alias-markdown-code-block-banner: var(--vy-l-code-banner);
+  --dsw-alias-markdown-code-block: var(--vy-l-code-bg);
+  --dsw-alias-markdown-code-segment-selected: var(--vy-l-code-sel);
+  --dsw-alias-markdown-code-segment-unselected: var(--vy-l-code-unsel);
+  --dsw-alias-markdown-inline-code: var(--vy-l-inline);
+  --dsw-alias-markdown-placeholder: var(--vy-l-md-placeholder);
+  --dsw-alias-markdown-tag: var(--vy-l-md-tag);
+  --dsw-alias-scrollbar-bg-l1: var(--vy-l-sb-1);
+  --dsw-alias-scrollbar-bg-l2: var(--vy-l-sb-2);
+  --dsw-alias-scrollbar-hover-l1: var(--vy-l-sb-h1);
+  --dsw-alias-scrollbar-hover-l2: var(--vy-l-sb-h2);
+  --dsw-alias-state-business-primary: var(--vy-l-business);
+  --dsw-alias-state-business-tertiary: var(--vy-l-business-ter);
+  --dsw-alias-code-diff-added: rgba(10, 122, 83, 0.12);
+  --dsw-alias-code-diff-deleted: rgba(198, 40, 40, 0.10);
+  --dsw-alias-file-diff-added-bg: #e6f5ec;
+  --dsw-alias-file-diff-added-gutter: #d6ecdf;
+  --dsw-alias-file-diff-added-marker: #0a7a53;
+  --dsw-alias-file-diff-deleted-bg: #fbe9e9;
+  --dsw-alias-file-diff-deleted-gutter: #f5dcdc;
+  --dsw-alias-file-diff-deleted-marker: #c62828;
+  --dsw-alias-state-error-primary: var(--vy-l-error);
+  --dsw-alias-state-error-secondary: var(--vy-l-error-2);
+  --dsw-alias-state-idle-primary: var(--vy-l-idle);
+  --dsw-alias-state-success-primary: var(--vy-l-success);
+  --dsw-alias-state-success-secondary: var(--vy-l-success-2);
+  --dsw-alias-state-success-tertiary: var(--vy-l-success-ter);
+  --dsw-alias-state-warn-label: var(--vy-l-warn-label);
+  --dsw-alias-state-warn-primary: var(--vy-l-warn);
+  --dsw-alias-state-warn-secondary: var(--vy-l-warn-2);
+  --dsw-alias-state-warn-tertiary: var(--vy-l-warn-ter);
+  --dsw-alias-switch-thumb: var(--vy-l-switch);
+  --dsw-alias-toast-bg: var(--vy-l-toast);
+  --dsw-alias-toast-label: #f7fbff;
+  --dsw-alias-tooltip-bg: var(--vy-l-tooltip);
+  --dsw-alias-tooltip-key-bg: color-mix(in srgb, var(--vy-l-tooltip), #ffffff 16%);
+  --dsw-alias-turn-trigger-bg: var(--vy-l-hover);
+  --dsw-alias-turn-trigger-bg-hover: var(--vy-l-active);
+  --dsw-specific-bubble-highlight: var(--vy-l-bubble-hi);
+  --dsw-specific-bubble: var(--vy-l-bubble);
+  --dsw-specific-input-major: var(--vy-l-input);
+  --dsw-specific-login-input: var(--vy-l-login);
+  --dsw-menu-surface-fill: rgba(var(--vy-l-menu), var(--vy-l-menu-alpha));
+  --dsw-alias-menu-group-header-fill: rgba(var(--vy-l-menu-group), 0.96);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--vy-l-selector);
+  --dsw-specific-sidebar-fill: var(--vy-l-sidebar);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--vy-l-nav-accent);
+  --dsw-specific-sidebar-nav-item-active: var(--vy-l-nav-active);
+  --dsw-specific-sidebar-nav-item-hover: var(--vy-l-nav-hover);
+  --dsw-specific-tip: var(--vy-l-tip);
+  --dsw-alias-settings-card-fill: var(--vy-l-card);
+  --dsw-alias-settings-card-stroke: var(--vy-l-border-4);
+}
+
+/* ============================================================================
+ * 2.3 glass 档：表面 token 半透明化（alpha 全部乘 --vyron-a 通透度系数）
+ *     只覆盖"表面/描边/遮罩"类 token（38 项）；文字与状态色沿用 §2.1 不透明值，
+ *     保证任何通透度下正文对比度不塌。alpha>1 由浏览器按 [0,1] 钳制。
+ * ========================================================================== */
+html.dsh-vyron-skin--glass,
+html.dsh-vyron-skin--glass body {
+  --dsw-alias-bg-base: rgba(var(--vy-g-base), calc(max(0.3, 0.42 * var(--vyron-a))));
+  --dsw-alias-bg-document-preview: rgba(var(--vy-g-doc), calc(max(0.34, 0.5 * var(--vyron-a))));
+  --dsw-alias-bg-layer-1: rgba(var(--vy-g-l1), calc(max(0.34, 0.52 * var(--vyron-a))));
+  --dsw-alias-bg-layer-2: rgba(var(--vy-g-l2), calc(max(0.42, 0.62 * var(--vyron-a))));
+  --dsw-alias-bg-layer-3: rgba(var(--vy-g-l3), calc(max(0.48, 0.7 * var(--vyron-a))));
+  --dsw-alias-bg-module-platform: rgba(var(--vy-g-platform), calc(max(0.4, 0.6 * var(--vyron-a))));
+  --dsw-alias-bg-multi-select: rgba(var(--vy-g-multi), calc(max(0.42, 0.62 * var(--vyron-a))));
+  --dsw-alias-bg-overlay: rgba(var(--vy-g-overlay), calc(max(0.5, 0.7 * var(--vyron-a))));
+  --dsw-specific-sidebar-fill: rgba(var(--vy-g-sidebar), calc(max(0.3, 0.52 * var(--vyron-a))));
+  --dsw-specific-input-major: rgba(var(--vy-g-input), calc(max(0.36, 0.62 * var(--vyron-a))));
+  --dsw-specific-bubble: rgba(var(--vy-g-bubble), calc(max(0.34, 0.56 * var(--vyron-a))));
+  --dsw-specific-bubble-highlight: rgba(var(--vy-g-bubble-hi), calc(max(0.4, 0.62 * var(--vyron-a))));
+  --dsw-menu-surface-fill: rgba(var(--vy-g-menu), calc(max(0.62, 0.78 * var(--vyron-a))));
+  --dsw-alias-menu-group-header-fill: rgba(var(--vy-g-menu-group), calc(max(0.72, 0.9 * var(--vyron-a))));
+  --dsw-specific-selector: rgba(var(--vy-g-selector), calc(max(0.42, 0.62 * var(--vyron-a))));
+  --dsw-specific-tip: rgba(var(--vy-g-tip), calc(max(0.46, 0.66 * var(--vyron-a))));
+  --dsw-specific-login-input: rgba(var(--vy-g-login), calc(max(0.5, 0.7 * var(--vyron-a))));
+  --dsw-alias-settings-card-fill: rgba(var(--vy-g-card), calc(max(0.4, 0.6 * var(--vyron-a))));
+  --dsw-alias-settings-card-stroke: rgba(238, 242, 246, calc(0.12 * var(--vyron-a)));
+  --dsw-specific-sidebar-nav-item-active: rgba(var(--vy-g-nav-active), calc(max(0.4, 0.6 * var(--vyron-a))));
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(var(--vy-g-nav-accent), calc(max(0.42, 0.62 * var(--vyron-a))));
+  --dsw-specific-sidebar-nav-item-hover: rgba(var(--vy-g-nav-hover), calc(max(0.34, 0.5 * var(--vyron-a))));
+  --dsw-alias-button-floating-fill: rgba(var(--vy-g-card), calc(max(0.4, 0.62 * var(--vyron-a))));
+  --dsw-alias-button-elevated-fill: rgba(var(--vy-g-l3), calc(max(0.48, 0.66 * var(--vyron-a))));
+  --dsw-alias-interactive-bg-hover-solid: rgba(var(--vy-g-nav-active), calc(max(0.4, 0.55 * var(--vyron-a))));
+  --dsw-alias-toast-bg: rgba(var(--vy-g-toast), calc(max(0.68, 0.84 * var(--vyron-a))));
+  --dsw-alias-tooltip-bg: rgba(var(--vy-g-tooltip), calc(max(0.72, 0.88 * var(--vyron-a))));
+  --dsw-alias-bg-mask-1: rgba(var(--vy-g-mask), calc(0.55 * var(--vyron-a)));
+  --dsw-alias-bg-mask-2: rgba(var(--vy-g-mask), calc(0.30 * var(--vyron-a)));
+  --dsw-alias-bg-mask-3: rgba(var(--vy-g-mask), calc(0.65 * var(--vyron-a)));
+  --dsw-alias-bg-mask-drop: rgba(var(--vy-g-menu), calc(max(0.62, 0.86 * var(--vyron-a))));
+  --dsw-alias-scrollbar-bg-l1: rgba(var(--vy-g-scrollbar), calc(0.14 * var(--vyron-a)));
+  --dsw-alias-scrollbar-bg-l2: rgba(var(--vy-g-scrollbar), calc(0.22 * var(--vyron-a)));
+  --dsw-alias-scrollbar-hover-l1: rgba(var(--vy-g-scrollbar), calc(0.30 * var(--vyron-a)));
+  --dsw-alias-scrollbar-hover-l2: rgba(var(--vy-deco-rgb), calc(0.55 * var(--vyron-a)));
+  --dsw-alias-bg-document-selection: rgba(77, 107, 254, calc(0.38 * var(--vyron-a)));
+  --dsw-alias-label-primary: var(--vy-label-1);
+  --dsw-alias-label-primary-dimmed: var(--vy-label-1-dim);
+  --dsw-alias-label-secondary: var(--vy-glass-label-2);
+  --dsw-alias-label-tertiary: var(--vy-glass-label-3);
+  --dsw-alias-label-caption: var(--vy-glass-label-cap);
+  --dsw-menu-backdrop-filter: blur(26px) saturate(140%);
+  --dsw-mask-blur: blur(10px) saturate(120%);
+  --dsw-elevation-stroke-color: rgba(238, 242, 246, calc(0.12 * var(--vyron-a)));
+  --dsw-elevation-stroke: 0 0 0 0.5px rgba(238, 242, 246, 0.12);
+  --dsw-elevation-panel: 0 0 0 0.5px rgba(238, 242, 246, 0.12), 0 8px 32px rgba(0, 0, 0, 0.42);
+  --dsw-elevation-prominent: 0 0 0 0.5px rgba(238, 242, 246, 0.14), 0 14px 44px rgba(0, 0, 0, 0.50);
+  --dsw-elevation-soft: 0 0 0 0.5px rgba(238, 242, 246, 0.10), 0 6px 20px rgba(0, 0, 0, 0.30);
+  --dsw-shadow-lv3: 0 0 1px 0 rgba(238, 242, 246, 0.10), 0 14px 40px 0 rgba(0, 0, 0, 0.36);
+}
+
+/* ============================================================================
+ * 2.4 浅色宿主 + glass 档：亮色半透表面（文字深色，禁止白底白字）
+ * ========================================================================== */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) {
+  --dsw-alias-bg-base: rgba(var(--vy-lg-base), calc(0.58 * var(--vyron-a)));
+  --dsw-alias-bg-document-preview: rgba(var(--vy-lg-doc), calc(0.66 * var(--vyron-a)));
+  --dsw-alias-bg-layer-1: rgba(var(--vy-lg-l1), calc(0.62 * var(--vyron-a)));
+  --dsw-alias-bg-layer-2: rgba(var(--vy-lg-l2), calc(0.72 * var(--vyron-a)));
+  --dsw-alias-bg-layer-3: rgba(var(--vy-lg-l3), calc(0.78 * var(--vyron-a)));
+  --dsw-alias-bg-module-platform: rgba(var(--vy-lg-platform), calc(0.68 * var(--vyron-a)));
+  --dsw-alias-bg-multi-select: rgba(var(--vy-lg-multi), calc(0.70 * var(--vyron-a)));
+  --dsw-alias-bg-overlay: rgba(var(--vy-lg-overlay), calc(0.78 * var(--vyron-a)));
+  --dsw-specific-sidebar-fill: rgba(var(--vy-lg-sidebar), calc(0.60 * var(--vyron-a)));
+  --dsw-specific-input-major: rgba(var(--vy-lg-input), calc(0.72 * var(--vyron-a)));
+  --dsw-specific-bubble: rgba(var(--vy-lg-bubble), calc(0.64 * var(--vyron-a)));
+  --dsw-specific-bubble-highlight: rgba(var(--vy-lg-bubble-hi), calc(0.70 * var(--vyron-a)));
+  --dsw-menu-surface-fill: rgba(var(--vy-lg-menu), calc(0.86 * var(--vyron-a)));
+  --dsw-alias-menu-group-header-fill: rgba(var(--vy-lg-menu-group), calc(0.94 * var(--vyron-a)));
+  --dsw-specific-selector: rgba(var(--vy-lg-selector), calc(0.70 * var(--vyron-a)));
+  --dsw-specific-tip: rgba(var(--vy-lg-tip), calc(0.74 * var(--vyron-a)));
+  --dsw-specific-login-input: rgba(var(--vy-lg-login), calc(0.80 * var(--vyron-a)));
+  --dsw-alias-settings-card-fill: rgba(var(--vy-lg-card), calc(0.70 * var(--vyron-a)));
+  --dsw-alias-settings-card-stroke: rgba(10, 22, 40, calc(0.12 * var(--vyron-a)));
+  --dsw-specific-sidebar-nav-item-active: rgba(var(--vy-lg-nav-active), calc(0.68 * var(--vyron-a)));
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(var(--vy-lg-nav-accent), calc(0.70 * var(--vyron-a)));
+  --dsw-specific-sidebar-nav-item-hover: rgba(var(--vy-lg-nav-hover), calc(0.60 * var(--vyron-a)));
+  --dsw-alias-button-floating-fill: rgba(var(--vy-lg-card), calc(0.72 * var(--vyron-a)));
+  --dsw-alias-button-elevated-fill: rgba(var(--vy-lg-l3), calc(0.76 * var(--vyron-a)));
+  --dsw-alias-interactive-bg-hover-solid: rgba(var(--vy-lg-nav-active), calc(0.62 * var(--vyron-a)));
+  --dsw-alias-toast-bg: rgba(var(--vy-lg-toast), calc(0.90 * var(--vyron-a)));
+  --dsw-alias-tooltip-bg: rgba(var(--vy-lg-tooltip), calc(0.92 * var(--vyron-a)));
+  --dsw-alias-bg-mask-1: rgba(var(--vy-lg-mask), calc(0.36 * var(--vyron-a)));
+  --dsw-alias-bg-mask-2: rgba(var(--vy-lg-mask), calc(0.20 * var(--vyron-a)));
+  --dsw-alias-bg-mask-3: rgba(var(--vy-lg-mask), calc(0.50 * var(--vyron-a)));
+  --dsw-alias-bg-mask-drop: rgba(var(--vy-lg-menu), calc(0.90 * var(--vyron-a)));
+  --dsw-alias-scrollbar-bg-l1: rgba(var(--vy-lg-scrollbar), calc(0.16 * var(--vyron-a)));
+  --dsw-alias-scrollbar-bg-l2: rgba(var(--vy-lg-scrollbar), calc(0.26 * var(--vyron-a)));
+  --dsw-alias-scrollbar-hover-l1: rgba(var(--vy-lg-scrollbar), calc(0.34 * var(--vyron-a)));
+  --dsw-alias-scrollbar-hover-l2: rgba(59, 85, 217, calc(0.55 * var(--vyron-a)));
+  --dsw-alias-bg-document-selection: rgba(59, 85, 217, calc(0.22 * var(--vyron-a)));
+  --dsw-menu-backdrop-filter: blur(24px) saturate(130%);
+  --dsw-mask-blur: blur(10px) saturate(120%);
+  --dsw-elevation-stroke-color: rgba(10, 22, 40, calc(0.14 * var(--vyron-a)));
+  --dsw-elevation-stroke: 0 0 0 0.5px rgba(10, 22, 40, 0.12);
+  --dsw-elevation-panel: 0 0 0 0.5px rgba(10, 22, 40, 0.12), 0 8px 32px rgba(10, 22, 40, 0.18);
+  --dsw-elevation-prominent: 0 0 0 0.5px rgba(10, 22, 40, 0.14), 0 14px 44px rgba(10, 22, 40, 0.22);
+  --dsw-elevation-soft: 0 0 0 0.5px rgba(10, 22, 40, 0.10), 0 6px 20px rgba(10, 22, 40, 0.14);
+  --dsw-shadow-lv3: 0 0 1px 0 rgba(10, 22, 40, 0.12), 0 14px 40px 0 rgba(10, 22, 40, 0.16);
+}
+
+/* ============================================================================
+ * 2.5 深色宿主的静态色阶重映射（宿主 token 分两层：static 色阶 + alias 语义层）
+ *     alias 层已在 §2.1 全覆盖；这里补 static 层，让少数直接用 static token 的
+ *     组件（实测 4 处，如 conversation 图表 meter-tint）与玻璃/装饰同色相。
+ *     语义色阶（red/green/amber）保持宿主原值，不重映射。
+ * ========================================================================== */
+html.dsh-vyron-skin body[data-ds-dark-theme] {
+  --dsw-static-neutral-bluish-00: #ffffff;
+  --dsw-static-neutral-bluish-50: #eef2f6;
+  --dsw-static-neutral-bluish-60: #e9eef4;
+  --dsw-static-neutral-bluish-75: #e4eaf1;
+  --dsw-static-neutral-bluish-100: #dfe6ee;
+  --dsw-static-neutral-bluish-150: #d7e0ea;
+  --dsw-static-neutral-bluish-200: #cbd6e2;
+  --dsw-static-neutral-bluish-300: #b8c6d6;
+  --dsw-static-neutral-bluish-400: #9fb0c4;
+  --dsw-static-neutral-bluish-500: #8b9aab;
+  --dsw-static-neutral-bluish-600: #6f7f93;
+  --dsw-static-neutral-bluish-700: #556476;
+  --dsw-static-neutral-bluish-750: #39495c;
+  --dsw-static-neutral-bluish-800: #263548;
+  --dsw-static-neutral-bluish-850: #16243a;
+  --dsw-static-neutral-bluish-875: #0f1c2e;
+  --dsw-static-neutral-bluish-900: #0a1424;
+  --dsw-static-neutral-bluish-950: #050a16;
+  --dsw-static-neutral-bluish-1000: #03060d;
+  --dsw-static-neutral-400: #9fb0c4;
+  --dsw-static-neutral-500: #8b9aab;
+  --dsw-static-neutral-550: #72839a;
+  --dsw-static-neutral-600: #6f7f93;
+  --dsw-static-neutral-700: #39495c;
+  --dsw-static-neutral-800: #263548;
+  --dsw-static-neutral-850: #16243a;
+  --dsw-static-neutral-900: #0a1424;
+  --dsw-static-deepseek-50: #edf3fe;
+  --dsw-static-deepseek-100: #e4edfd;
+  --dsw-static-deepseek-200: #d3e2ff;
+  --dsw-static-deepseek-300: #b7c8fe;
+  --dsw-static-deepseek-400: #7aaaff;
+  --dsw-static-deepseek-450: #4d6bfe;
+  --dsw-static-deepseek-500: #4176e6;
+  --dsw-static-deepseek-600: #3a55cc;
+  --dsw-static-deepseek-700_delete: #2f4c8f;
+  --dsw-static-deepseek-800: #22345f;
+  --dsw-static-deepseek-900: #1a2a4d;
+  --dsw-static-blue-50: #edf3fe;
+  --dsw-static-blue-50p: #e4edfd;
+  --dsw-static-blue-75: #dfe9fd;
+  --dsw-static-blue-100: #d3e2ff;
+  --dsw-static-blue-300: #b7c8fe;
+  --dsw-static-blue-400: #8fb4ff;
+  --dsw-static-blue-450: #6d95ff;
+  --dsw-static-blue-500: #4d6bfe;
+  --dsw-static-blue-600: #3f5ae8;
+  --dsw-static-blue-800: #22345f;
+  --dsw-static-blue-900: #1a2a4d;
+  --dsw-static-blue-950: #0f1c33;
+}
+
+/* ============================================================================
+ * 3. accent 档：局部强调（选区 / 焦点 / 光标 / 占位符 / 滚动条）
+ *    只改颜色，不碰字号、行高、布局；off 档 html 无 .dsh-vyron-skin → 零生效。
+ * ========================================================================== */
+
+/* 光标与原生控件强调色（继承到全部输入框 / checkbox / radio） */
+html.dsh-vyron-skin {
+  caret-color: var(--vy-rim);
+  accent-color: var(--vy-brand);
+}
+
+/* 文本选区：深色宿主用 DSH 蓝半透 + 云白字；浅色宿主用更浅的蓝底深字 */
+html.dsh-vyron-skin ::selection {
+  background: rgba(77, 107, 254, 0.42);
+  color: var(--v-cloud);
+}
+html.dsh-vyron-skin body:not([data-ds-dark-theme]) ::selection {
+  background: rgba(59, 85, 217, 0.20);
+  color: #0a1628;
+}
+
+/* 键盘焦点：宿主用 --dsw-focus-ring-color 令牌（pointer 模态下透明，不抢焦点环）；
+ * 这里只给没有显式 outline-color 的元素兜底色，不覆盖宿主自己的 focus 令牌逻辑。 */
+html.dsh-vyron-skin:not([data-input-modality="pointer"]) :focus-visible {
+  outline-color: var(--vy-rim);
+}
+
+/* 输入占位符：宿主原值 caption 灰在深空底上约 4.2:1；皮肤档提到 label-tertiary
+ * （深色 #93a3b6 on #0b1626 ≈ 7.05:1；浅色 #465a72 on #ffffff ≈ 7.08:1），
+ * 只改颜色，不改字号。 */
+html.dsh-vyron-skin ::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+  opacity: 1;
+}
+
+/* 工具提示：宿主在明暗两套宿主下都是"深底浅字"（--dsw-alias-tooltip-bg 恒为深色阶），
+ * 但文字 token 在浅色宿主下可能继承到深色正文色。这里对标准 role="tooltip" 兜底为云白，
+ * 只改颜色、不加尺寸。若宿主 tooltip 未用 role，宿主自身的浅色文字仍然生效（无副作用）。 */
+html.dsh-vyron-skin [role="tooltip"] {
+  color: var(--vy-tooltip-label);
+}
+
+/* 滚动条：宿主已按 --dsw-alias-scrollbar-* 令牌渲染（::-webkit-scrollbar-thumb），
+ * 本皮肤只补 hover/active 的强调色与圆角收尾；不新增尺寸。 */
+html.dsh-vyron-skin ::-webkit-scrollbar-thumb:active {
+  background-color: var(--dsw-alias-scrollbar-hover-l2);
+}
+html.dsh-vyron-skin {
+  scrollbar-color: var(--dsw-alias-scrollbar-bg-l2) transparent;
+}
+
+/* ============================================================================
+ * 4. 三主题（html[data-vyron-theme="orbit|terra|abyss"]）
+ * ----------------------------------------------------------------------------
+ * 主题只重定义 §1 的派生变量（--vy-* / --vy-l-* / --vy-a* / --vy-ring-*），
+ * 不重复声明 token —— 因此 glass 档的半透明 token 自动跟着主题变色，
+ * 不会出现"主题把玻璃覆盖回实色"的冲突。
+ * orbit 为缺省值（§1 已定义，无需覆盖）；主题属性由 client.js 在 skin≠off 时写入
+ * （当前实现仅 glass 档写入，accent/full 回落 orbit，docs/skin-spec.md 已注明）。
+ * ========================================================================== */
+
+/* ── 4.1 terra：地球蓝 + 沙漠暖（高光云暖白，强调仍是 DSH 蓝）────────────── */
+html.dsh-vyron-skin[data-vyron-theme="terra"],
+html.dsh-vyron-skin[data-vyron-theme="terra"] body {
+  --vy-bg-0: #050810;
+  --vy-bg-base: #070d16;
+  --vy-doc-preview: #050a10;
+  --vy-layer-1: #0c1420;
+  --vy-layer-2: #121a26;
+  --vy-layer-3: #1a2432;
+  --vy-platform: #0e1725;
+  --vy-multi: #1b2534;
+  --vy-overlay: #23303f;
+  --vy-sidebar: #050a10;
+  --vy-input: #101724;
+  --vy-bubble: #101824;
+  --vy-bubble-hi: #1a2634;
+  --vy-menu: 14, 22, 33;
+  --vy-menu-group: 16, 24, 36;
+  --vy-selector: #1a2634;
+  --vy-tip: #1a2634;
+  --vy-login: #0a0f16;
+  --vy-nav-active: #172231;
+  --vy-nav-accent: #1f2d3f;
+  --vy-nav-hover: #121b27;
+  --vy-card: #101724;
+  --vy-label-1: #f3eee4;
+  --vy-label-2: #c8c1b4;
+  --vy-label-3: #ab9f8b;
+  --vy-label-cap: #9c8f7a;
+  --vy-label-bluish: #eaf1ff;
+  --vy-label-1-dim: #e2dcd0;
+  --vy-fg: #070d16;
+  --vy-label-inverted: #221c12;
+  --vy-glass-label-2: #d6cbb8;
+  --vy-glass-label-3: #bcae99;
+  --vy-glass-label-cap: #afa18a;
+  --vy-rim: #f1e6d2;
+  --vy-business: #7fa4ff;
+  --vy-business-ter: #1f2f4d;
+  --vy-link: #8bb5ff;
+  --vy-sand: #d9b478;
+  --vy-ink-rgb: 243, 238, 228;
+  --vy-hover: rgba(217, 180, 120, 0.09);
+  --vy-active: rgba(217, 180, 120, 0.15);
+  --vy-hover-solid: #1a2432;
+  --vy-skeleton: rgba(243, 238, 228, 0.06);
+  --vy-think-grad: linear-gradient(180deg, #0c1420 20.19%, rgba(12, 20, 32, 0) 100%);
+  --vy-think-select: linear-gradient(180deg, #1a2634 20.19%, rgba(26, 38, 52, 0) 100%);
+  --vy-sb-1: #2b3441;
+  --vy-sb-2: #3c4859;
+  --vy-sb-h1: #55647a;
+  --vy-sb-h2: #d9b478;
+  --vy-toast: #1a2634;
+  --vy-tooltip: #23303f;
+  --vy-code-bg: #080f18;
+  --vy-code-banner: #101724;
+  --vy-code-sel: #1a2634;
+  --vy-code-unsel: #0c1420;
+  --vy-inline: #131c28;
+  --vy-md-placeholder: #101724;
+  --vy-md-tag: #101824;
+  --vy-citation: #172231;
+  --vy-g-base: 7, 13, 22;
+  --vy-g-l1: 12, 20, 32;
+  --vy-g-l2: 18, 26, 38;
+  --vy-g-l3: 26, 36, 50;
+  --vy-g-sidebar: 5, 10, 16;
+  --vy-g-input: 16, 23, 36;
+  --vy-g-nav-active: 23, 34, 49;
+  --vy-g-nav-accent: 31, 45, 63;
+  --vy-g-nav-hover: 18, 27, 39;
+  --vy-g-menu: 14, 22, 33;
+  --vy-g-menu-group: 16, 24, 36;
+  --vy-g-selector: 26, 38, 52;
+  --vy-g-tip: 26, 38, 52;
+  --vy-g-scrollbar: 243, 238, 228;
+  --vy-a1: 241, 230, 210;
+  --vy-a2: 201, 164, 106;
+  --vy-a3: 87, 168, 255;
+  --vy-ab0: #0b1220;
+  --vy-ab1: #070d16;
+  --vy-ab2: #040710;
+  --vy-earth-rgb: 201, 164, 106;
+  --vy-sea-rgb: 241, 230, 210;
+  --vy-sheen-rgb: 241, 230, 210;
+  --vy-star-rgb: 241, 230, 210;
+  --vy-ring-a: 241, 230, 210;
+  --vy-ring-b: 255, 250, 240;
+  --vy-ring-c: 87, 168, 255;
+  /* 浅色宿主（terra 昼面：暖白底 + 沙金高光） */
+  --vy-l-bg-0: #efe6d8;
+  --vy-l-bg-base: #fbf5ec;
+  --vy-l-doc-preview: #fdfaf4;
+  --vy-l-layer-1: #ffffff;
+  --vy-l-layer-2: #fffdf9;
+  --vy-l-layer-3: #faf5ec;
+  --vy-l-sidebar: #f3ead9;
+  --vy-l-input: #ffffff;
+  --vy-l-bubble: #f7efe2;
+  --vy-l-bubble-hi: #efe3d0;
+  --vy-l-menu: 255, 253, 249;
+  --vy-l-selector: #f0e4d2;
+  --vy-l-tip: #f5ecdd;
+  --vy-l-nav-active: #f0e4d2;
+  --vy-l-nav-accent: #e8d9c2;
+  --vy-l-nav-hover: #f6eddf;
+  --vy-l-label-1: #241a0c;
+  --vy-l-label-2: #4f4028;
+  --vy-l-label-3: #6b583a;
+  --vy-l-label-cap: #7b6647;
+  --vy-l-fg: #fdfaf4;
+  --vy-l-business: #3b55d9;
+  --vy-l-link: #2f4fd6;
+  --vy-l-cream: #6b4a12;
+  --vy-l-sand: #7a5a1e;
+  --vy-l-rim: #a9782e;
+  --vy-l-ink-rgb: 36, 26, 12;
+  --vy-l-hover: rgba(122, 90, 30, 0.07);
+  --vy-l-active: rgba(122, 90, 30, 0.12);
+  --vy-l-hover-solid: #f0e4d2;
+  --vy-l-skeleton: rgba(36, 26, 12, 0.08);
+  --vy-l-sb-1: #dccdb6;
+  --vy-l-sb-2: #c0ad91;
+  --vy-l-sb-h1: #a8916d;
+  --vy-l-sb-h2: #7a5a1e;
+  --vy-lg-base: 251, 245, 236;
+  --vy-lg-sidebar: 243, 234, 217;
+  --vy-lg-input: 255, 255, 255;
+  --vy-lg-menu: 255, 253, 249;
+  --vy-lg-scrollbar: 36, 26, 12;
+  --vy-la1: 201, 164, 106;
+  --vy-la2: 122, 90, 30;
+  --vy-la3: 59, 85, 217;
+  --vy-lab0: #f0e6d5;
+  --vy-lab1: #f7f0e4;
+  --vy-lab2: #fdfaf4;
+  --vy-lsheen-rgb: 255, 245, 224;
+  --vy-learth-rgb: 201, 164, 106;
+  --vy-lsea-rgb: 201, 164, 106;
+  --vy-lcloud-rgb: 255, 255, 255;
+}
+
+/* ── 4.2 abyss：近黑 + 生物光青蓝（夜间/低亮度；强调=青蓝，品牌锚点仍是 DSH 蓝）── */
+html.dsh-vyron-skin[data-vyron-theme="abyss"],
+html.dsh-vyron-skin[data-vyron-theme="abyss"] body {
+  --vy-bg-0: #010308;
+  --vy-bg-base: #02040a;
+  --vy-doc-preview: #010205;
+  --vy-layer-1: #060b14;
+  --vy-layer-2: #0a111c;
+  --vy-layer-3: #0e1826;
+  --vy-platform: #070f1a;
+  --vy-multi: #0d1a28;
+  --vy-overlay: #13202f;
+  --vy-sidebar: #010204;
+  --vy-input: #070d18;
+  --vy-bubble: #08101a;
+  --vy-bubble-hi: #0e1a28;
+  --vy-menu: 6, 12, 20;
+  --vy-menu-group: 8, 15, 24;
+  --vy-selector: #0e1a28;
+  --vy-tip: #0e1a28;
+  --vy-login: #040810;
+  --vy-nav-active: #0b1a26;
+  --vy-nav-accent: #102433;
+  --vy-nav-hover: #08131d;
+  --vy-card: #08111b;
+  --vy-label-1: #e2f7f2;
+  --vy-label-2: #a9c6c4;
+  --vy-label-3: #88a8a8;
+  --vy-label-cap: #7a9696;
+  --vy-label-bluish: #d6f7f0;
+  --vy-label-1-dim: #cfeae4;
+  --vy-fg: #02040a;
+  --vy-label-inverted: #0a201e;
+  --vy-glass-label-2: #c0dcd9;
+  --vy-glass-label-3: #a5c6c4;
+  --vy-glass-label-cap: #99bab8;
+  --vy-rim: #46d3e0;
+  --vy-brand: #4d6bfe;   /* 品牌锚点始终是 DSH 蓝（任务约束）；abyss 的"强调"由 business/link/rim 的青承担 */
+  --vy-business: #46d3e0;
+  --vy-business-ter: #0d2d32;
+  --vy-link: #6fe0ff;
+  --vy-bio: #8fefff;
+  --vy-success: #34d399;
+  --vy-success-2: #7ef0d4;
+  --vy-ink-rgb: 226, 247, 242;
+  --vy-hover: rgba(126, 240, 212, 0.07);
+  --vy-active: rgba(126, 240, 212, 0.13);
+  --vy-hover-brand: rgba(51, 201, 189, 0.22);
+  --vy-hover-solid: #0b1a26;
+  --vy-skeleton: rgba(226, 247, 242, 0.06);
+  --vy-think-grad: linear-gradient(180deg, #060b14 20.19%, rgba(6, 11, 20, 0) 100%);
+  --vy-think-select: linear-gradient(180deg, #0e1a28 20.19%, rgba(14, 26, 40, 0) 100%);
+  --vy-sb-1: #1b2f38;
+  --vy-sb-2: #27424d;
+  --vy-sb-h1: #35606a;
+  --vy-sb-h2: #46d3e0;
+  --vy-toast: #0e1a28;
+  --vy-tooltip: #13202f;
+  --vy-code-bg: #03070d;
+  --vy-code-banner: #08111b;
+  --vy-code-sel: #0e1a28;
+  --vy-code-unsel: #060b14;
+  --vy-inline: #0a1822;
+  --vy-md-placeholder: #08111b;
+  --vy-md-tag: #08101a;
+  --vy-citation: #0b1a26;
+  --vy-g-base: 2, 4, 10;
+  --vy-g-l1: 6, 11, 20;
+  --vy-g-l2: 10, 17, 28;
+  --vy-g-l3: 14, 24, 38;
+  --vy-g-sidebar: 1, 2, 4;
+  --vy-g-input: 7, 13, 24;
+  --vy-g-nav-active: 11, 26, 38;
+  --vy-g-nav-accent: 16, 36, 51;
+  --vy-g-nav-hover: 8, 19, 29;
+  --vy-g-menu: 6, 12, 20;
+  --vy-g-menu-group: 8, 15, 24;
+  --vy-g-selector: 14, 26, 40;
+  --vy-g-tip: 14, 26, 40;
+  --vy-g-scrollbar: 226, 247, 242;
+  --vy-a1: 70, 211, 224;
+  --vy-a2: 12, 48, 70;
+  --vy-a3: 87, 168, 255;
+  --vy-ab0: #031016;
+  --vy-ab1: #02070c;
+  --vy-ab2: #01040a;
+  --vy-earth-rgb: 60, 160, 210;
+  --vy-sea-rgb: 70, 211, 224;
+  --vy-sheen-rgb: 70, 211, 224;
+  --vy-star-rgb: 210, 235, 255;
+  --vy-ring-a: 70, 211, 224;
+  --vy-deco-rgb: 70, 211, 224;
+  --vy-deco-2-rgb: 87, 168, 255;
+  --vy-bio-rgb: 70, 211, 224;
+  --vy-ring-b: 214, 255, 246;
+  --vy-ring-c: 87, 168, 255;
+  /* 浅色宿主（abyss 昼面：冷青白底 + 深松绿字） */
+  --vy-l-bg-0: #dfeeec;
+  --vy-l-bg-base: #eef7f5;
+  --vy-l-doc-preview: #f7fcfb;
+  --vy-l-layer-1: #ffffff;
+  --vy-l-layer-2: #fbfefd;
+  --vy-l-layer-3: #f2faf8;
+  --vy-l-sidebar: #e3f0ee;
+  --vy-l-input: #ffffff;
+  --vy-l-bubble: #e8f4f2;
+  --vy-l-bubble-hi: #d8ece8;
+  --vy-l-menu: 255, 255, 255;
+  --vy-l-selector: #d8ece8;
+  --vy-l-tip: #e8f4f2;
+  --vy-l-nav-active: #d9eeea;
+  --vy-l-nav-accent: #c8e6e1;
+  --vy-l-nav-hover: #e5f3f0;
+  --vy-l-label-1: #08201e;
+  --vy-l-label-2: #2b4644;
+  --vy-l-label-3: #3d5f5c;
+  --vy-l-label-cap: #4f7270;
+  --vy-l-fg: #f7fcfb;
+  --vy-l-brand: #0b6274;
+  --vy-l-business: #0b6274;
+  --vy-l-business-ter: #d5ebe7;
+  --vy-l-link: #0f6f8a;
+  --vy-l-rim: #10768a;
+  --vy-l-bio: #0b6274;
+  --vy-l-ink-rgb: 8, 32, 30;
+  --vy-l-hover: rgba(11, 107, 98, 0.07);
+  --vy-l-active: rgba(11, 107, 98, 0.12);
+  --vy-l-hover-solid: #d9eeea;
+  --vy-l-hover-brand: rgba(11, 107, 98, 0.16);
+  --vy-l-skeleton: rgba(8, 32, 30, 0.08);
+  --vy-l-sb-1: #c3d8d4;
+  --vy-l-sb-2: #a4c4bf;
+  --vy-l-sb-h1: #87aca7;
+  --vy-l-sb-h2: #0b6b62;
+  --vy-lg-base: 238, 247, 245;
+  --vy-lg-sidebar: 227, 240, 238;
+  --vy-lg-input: 255, 255, 255;
+  --vy-lg-menu: 255, 255, 255;
+  --vy-lg-scrollbar: 8, 32, 30;
+  --vy-la1: 11, 107, 98;
+  --vy-la2: 18, 122, 110;
+  --vy-la3: 47, 127, 216;
+  --vy-lab0: #dcebe8;
+  --vy-lab1: #e9f4f2;
+  --vy-lab2: #f6fbfa;
+  --vy-lsheen-rgb: 226, 255, 248;
+  --vy-learth-rgb: 11, 107, 98;
+  --vy-lsea-rgb: 11, 107, 98;
+  --vy-lcloud-rgb: 255, 255, 255;
+}
+
+/* ============================================================================
+ * 5. full / glass 档：终端 HUD 装饰层
+ * ----------------------------------------------------------------------------
+ * 设计来源：Material A「CMD\LN」终端四窗 / micrographics / 日轨条 / session ledger。
+ * 硬约束：
+ *   - 装饰全部 pointer-events:none；不新增可交互层；不写宿主元素的宽高/内边距；
+ *     定位/尺寸只出现在本皮肤新增的伪元素与 fixed 装饰层上（零布局位移）。
+ *   - 选择器用低特异性 :where() / [class*="语义后缀" i]；宿主 CSS Modules 改哈希
+ *     前缀不影响命中（只匹配语义后缀，如 sidebarCol / composerSeat）。
+ *   - glass 档 = full 档 + 动态背景，故 "full 及以上" 统一用
+ *     :is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass)。
+ * ========================================================================== */
+
+/* ── 5.1 顶栏日轨条（时间刻度 + 当前时刻游标）+ session ledger 标签 ─────────
+ *    钩子依据：#root header[data-window-drag] —— 会话页/插件页的应用级 <header>
+ *    （实测 markup 为 <header class="an3WzG_header" data-window-drag>）。
+ *    日轨条 = 4 层 background（次刻度 / 主刻度 / 游标 / 底线），只画在 header 的
+ *    下边缘 7px 内，不占布局；游标位置读 --vyron-day-progress（0–100，可选，
+ *    缺省 50 居中；client.js 未注入时即为固定装饰）。
+ *    session ledger 标签用 ::after 绝对定位贴在右下，字号 9px 属于"装饰文字"，
+ *    对实渲染背景对比度 ≈ 4.9:1（≥3:1，见 docs/skin-spec.md）。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) #root header[data-window-drag] {
+  position: relative;
+  background-image:
+    /* ① 主刻度：每 60px 一根，7px 高 */
+    repeating-linear-gradient(90deg, rgba(238, 242, 246, 0.22) 0 1px, transparent 1px 60px),
+    /* ② 次刻度：每 12px 一根，4px 高 */
+    repeating-linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.28) 0 1px, transparent 1px 12px),
+    /* ③ 当前时刻游标：生物光点 */
+    radial-gradient(circle, rgba(var(--vy-deco-2-rgb), 0.95) 0 1.5px, transparent 2px),
+    /* ④ 日轨底线 */
+    linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.22), rgba(var(--vy-deco-rgb), 0.05) 62%, transparent);
+  background-repeat: repeat-x, repeat-x, no-repeat, no-repeat;
+  background-size: 100% 7px, 100% 4px, 10px 10px, 100% 1px;
+  background-position:
+    left bottom,
+    left bottom,
+    calc(var(--vyron-day-progress, 50) * 1% - 5px) calc(100% - 1px),
+    left bottom;
+}
+
+/* v0.2.0 日轨游标呼吸：游标原是一颗静态 1.5px 点，这里给它一圈 8.4s 呼吸光晕
+ * （放射渐变，落在 header 下边缘 12px 内）。只动 opacity/transform，pointer-events:none，
+ * 不占布局、不碰按钮；游标位置仍读 --vyron-day-progress（缺省 50 居中）。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) #root header[data-window-drag]::before {
+  content: "";
+  position: absolute;
+  bottom: 1px;
+  left: calc(var(--vyron-day-progress, 50) * 1% - 18px);
+  width: 36px;
+  height: 12px;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(var(--vy-deco-2-rgb), 0.92) 0%,
+    rgba(var(--vy-deco-rgb), 0.44) 38%,
+    rgba(var(--vy-deco-rgb), 0) 78%
+  );
+  opacity: 0.5;
+  animation: vy-daybar-cursor-breath 8.4s ease-in-out infinite;
+}
+@keyframes vy-daybar-cursor-breath {
+  0%, 100% { opacity: 0.22; transform: scale(0.78); }
+  50% { opacity: 0.96; transform: scale(1.2); }
+}
+
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) #root header[data-window-drag]::after {
+  content: "SESSION LEDGER";
+  position: absolute;
+  right: 22px;
+  bottom: 3px;
+  height: 13px;
+  padding: 0 7px 0 16px;
+  border: 0.5px solid rgba(var(--vy-deco-rgb), 0.24);
+  border-radius: 2px;
+  background-color: rgba(5, 10, 22, 0.55);
+  background-image: radial-gradient(circle 2px at 6px 50%, rgba(var(--vy-deco-2-rgb), 0.95), transparent 100%);
+  background-repeat: no-repeat;
+  font-family: ui-monospace, "Cascadia Mono", "Consolas", "Liberation Mono", monospace;
+  font-size: 9px;
+  line-height: 13px;
+  letter-spacing: 0.22em;
+  color: rgba(139, 154, 171, 0.92);
+  pointer-events: none;
+  animation: vy-ledger-breath 8.4s ease-in-out infinite;
+}
+/* v0.2.0：session ledger 呼吸振幅加倍（0.60↔1.0），让右上角这枚芯片也"活着" */
+@keyframes vy-ledger-breath {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* ── 5.2 四角角标 + 视口边缘光（fixed 装饰层，z-index 900 低于宿主弹窗 1000）──
+ *    四角 ⌜⌝⌞⌟ 用 8 条 1px 渐变画（不做字面量字符，避免字体回退导致移位）；
+ *    顶部 1px 大气边缘光。全部 pointer-events:none，不参与命中测试。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass)::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  background-image:
+    /* 左上 ⌜ */
+    linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    linear-gradient(180deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    /* 右上 ⌝ */
+    linear-gradient(270deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    linear-gradient(180deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    /* 左下 ⌞ */
+    linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    linear-gradient(0deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    /* 右下 ⌟ */
+    linear-gradient(270deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    linear-gradient(0deg, rgba(var(--vy-deco-rgb), 0.72) 0 18px, transparent 18px),
+    /* 顶部大气边缘光 */
+    linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0) 0%, rgba(var(--vy-deco-rgb), 0.18) 50%, rgba(var(--vy-deco-rgb), 0) 100%);
+  background-repeat: no-repeat;
+  background-size:
+    18px 1px, 1px 18px,
+    18px 1px, 1px 18px,
+    18px 1px, 1px 18px,
+    18px 1px, 1px 18px,
+    100% 1px;
+  background-position:
+    left 10px top 10px, left 10px top 10px,
+    right 10px top 10px, right 10px top 10px,
+    left 10px bottom 10px, left 10px bottom 10px,
+    right 10px bottom 10px, right 10px bottom 10px,
+    center top;
+}
+
+/* ── 5.3 扫描线 + 颗粒 + 侧缘数据刻度（fixed 装饰层，z-index 901）──────────
+ *    3px 扫描线 + SVG 噪点，整体不透明度 0.04（soft-light），不改变正文对比度；
+ *    左右缘各一条 1px 数据刻度列（每 16px 一格），强化"在轨终端"边框语言。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass)::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 901;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: soft-light;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(238, 242, 246, 0.85) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(180deg, rgba(238, 242, 246, 0.9) 0 1px, transparent 1px 16px),
+    repeating-linear-gradient(180deg, rgba(238, 242, 246, 0.9) 0 1px, transparent 1px 16px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E");
+  background-repeat: repeat, repeat-y, repeat-y, repeat;
+  background-size: auto, 1px 100%, 1px 100%, 160px 160px;
+  background-position: left top, left 26px top, right 26px top, left top;
+}
+
+/* ── 5.4 侧栏：右缘数据刻度列 + 底部 micrographics 微图形条（纯 CSS 图形）──
+ *    钩子依据：[class*="sidebarCol" i]（ui-layout AppFrame 的三列之一，实测类名
+ *    mP3x-q_sidebarCol；宿主升级换哈希前缀不影响命中）。
+ *    宿主未在该元素声明 position，补 relative 不改变布局，只为伪元素提供包含块；
+ *    伪元素 z-index:2 浮在侧栏内容之上、pointer-events:none 不拦点击。
+ *    底部条高 6px，正好落在侧栏 root 的 6px 垂直内边距里，不压内容。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) :where([class*="sidebarCol" i]) {
+  position: relative;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) :where([class*="sidebarCol" i])::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 2;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(180deg, rgba(var(--vy-deco-rgb), 0.42) 0 1px, transparent 1px 9px);
+  opacity: 0.5;
+  /* v0.2.0：右缘刻度列 6.8s 呼吸（与 8.4s 主呼吸错相，读作仪表在运行） */
+  animation: vy-side-tick-breath 6.8s ease-in-out infinite;
+}
+@keyframes vy-side-tick-breath {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.72; }
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) :where([class*="sidebarCol" i])::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  z-index: 2;
+  pointer-events: none;
+  /* 两层 micrographics：1px 细栅格 + 3px 位流（疏密不均，读作数据带） */
+  background-image:
+    repeating-linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.30) 0 1px, transparent 1px 11px),
+    repeating-linear-gradient(90deg, rgba(var(--vy-deco-2-rgb), 0.55) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, transparent 0 5px, rgba(201, 164, 106, 0.35) 5px 6px, transparent 6px 17px);
+  opacity: 0.55;
+  mix-blend-mode: screen;
+  /* v0.2.0：底部 micrographics 呼吸 8.4s（振幅 0.35↔0.85）+ 位流 16s 横向漂移，
+   * 只动 opacity/background-position，面积仅 6px 高，不新增合成层。 */
+  animation:
+    vy-micro-breath 8.4s ease-in-out infinite,
+    vy-micro-drift 16s linear infinite;
+}
+@keyframes vy-micro-breath {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.85; }
+}
+@keyframes vy-micro-drift {
+  0% { background-position: 0 0, 0 0, 0 0; }
+  100% { background-position: 22px 0, -7px 0, 17px 0; }
+}
+
+/* ── 5.5 输入框 1.6px 声呐环 + 8s conic 旋转光场 ──────────────────────────
+ *    钩子依据：[data-composer-card]（ui-conversation InputBar 的输入卡，
+ *    实测 markup 带 data-composer-card，且宿主已给它 position:relative 与
+ *    border-radius:var(--dsw-radius-panel)），比 [class*="_card"] 更稳。
+ *    结构（与 elisa v0.6 FLOW 同构、按"声呐"叙事重调色）：
+ *      ::before = 1.6px 底环 + 8s/圈旋转 conic 光场（主弧白热云暖 + 副弧生物光）
+ *      ::after  = 同一 conic 的模糊泛光（blur 7px，只落在外侧），相位锁定
+ *      呼吸     = 环 6.4s / 泛光 6.4s（与 8s 旋转互质，合成周期 32s）
+ *    布局：两个伪元素 absolute + pointer-events:none，不遮挡输入与焦点环；
+ *    宿主卡片 rect 注入前后完全一致（零布局位移）。
+ *    性能：@property 注册角度动画走主线程重绘，只作用于 2 个伪元素；blur 为静态
+ *    声明不参与逐帧动画；不新增 backdrop-filter。
+ *    降级：--static / prefers-reduced-motion → 动画 none（保留静态光边）；
+ *          --paused → paused；mask-composite 不支持 → 退化为 1px 实色内描边。 */
+@property --vyron-sonar-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* v0.2.0「彗尾流光」：环从"一圈均匀低亮 conic"升级为 2 段窄高亮弧——
+ *   ① 白热主弧（--vy-ring-b 云暖 + 纯白核心，34deg 附近，约 10deg 宽，前置彗尾从 16deg 渐亮）；
+ *   ② 生物青副弧（--vy-ring-c，166deg 附近，约 12deg 宽）；
+ * 其余角度压到 0.14–0.30 低亮底环（环仍在，但"流光"是明确的主角）。
+ * 转速 8s → 5.6s/圈；环整体亮度 0.9–1.0（呼吸 6.4s）。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 1.6px;
+  pointer-events: none;
+  background-image: conic-gradient(from var(--vyron-sonar-angle, 0deg),
+    /* 低亮底环 */
+    rgba(var(--vy-ring-a), 0.15) 0deg,
+    rgba(var(--vy-ring-a), 0.18) 16deg,
+    /* ① 白热彗尾：16deg 起渐亮 → 34deg 白热核心 → 37deg 回落 */
+    rgba(var(--vy-ring-b), 0.34) 26deg,
+    rgba(var(--vy-ring-b), 0.80) 31deg,
+    rgba(255, 255, 255, 0.98) 34deg,
+    rgba(var(--vy-ring-b), 0.64) 37deg,
+    rgba(var(--vy-ring-a), 0.30) 44deg,
+    rgba(var(--vy-ring-a), 0.14) 96deg,
+    /* ② 生物青窄弧：160–170deg */
+    rgba(var(--vy-ring-c), 0.20) 142deg,
+    rgba(var(--vy-ring-c), 0.58) 160deg,
+    rgba(var(--vy-ring-c), 0.96) 166deg,
+    rgba(var(--vy-ring-c), 0.84) 170deg,
+    rgba(var(--vy-ring-b), 0.40) 174deg,
+    rgba(var(--vy-ring-c), 0.22) 182deg,
+    /* 回到低亮底环 */
+    rgba(var(--vy-ring-a), 0.14) 244deg,
+    rgba(var(--vy-ring-a), 0.16) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.96;
+  animation:
+    vy-sonar-spin 5.6s linear infinite,
+    vy-ring-breath 6.4s ease-in-out infinite alternate;
+}
+/* ::after = 副光晕：与主环反向旋转（5.6s 主环 vs 7.2s 反向 = 相对角速度叠加，读作双层流光），
+ * 同一组 2 段弧但更宽更柔，blur(7px) 只落在外侧，叠加 6.4s 呼吸 0.28↔0.72。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  z-index: 0;
+  border-radius: calc(var(--dsw-radius-panel, 20px) + 5px);
+  padding: 4px;
+  pointer-events: none;
+  background-image: conic-gradient(from var(--vyron-sonar-angle, 0deg),
+    rgba(var(--vy-ring-a), 0.18) 0deg,
+    rgba(var(--vy-ring-a), 0.26) 18deg,
+    rgba(var(--vy-ring-b), 0.44) 27deg,
+    rgba(var(--vy-ring-b), 0.86) 31deg,
+    rgba(255, 255, 255, 0.92) 34deg,
+    rgba(var(--vy-ring-b), 0.70) 37deg,
+    rgba(var(--vy-ring-a), 0.38) 46deg,
+    rgba(var(--vy-ring-a), 0.22) 100deg,
+    rgba(var(--vy-ring-c), 0.30) 148deg,
+    rgba(var(--vy-ring-c), 0.66) 161deg,
+    rgba(var(--vy-ring-c), 0.90) 166deg,
+    rgba(var(--vy-ring-c), 0.70) 171deg,
+    rgba(var(--vy-ring-c), 0.34) 184deg,
+    rgba(var(--vy-ring-a), 0.22) 250deg,
+    rgba(var(--vy-ring-a), 0.20) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  filter: blur(7px);
+  opacity: 0.42;
+  animation:
+    vy-sonar-spin 7.2s linear infinite reverse,
+    vy-halo-breath 6.4s ease-in-out infinite alternate;
+}
+/* 聚焦提亮：静态 filter 声明（只动整环亮度 ×1.2），不参与逐帧动画（--static 下同样生效） */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]:focus-within::before {
+  filter: brightness(1.2) saturate(1.1);
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]:focus-within::after {
+  filter: blur(7px) brightness(1.28) saturate(1.14);
+}
+@keyframes vy-sonar-spin {
+  0% { --vyron-sonar-angle: 0deg; }
+  100% { --vyron-sonar-angle: 360deg; }
+}
+/* 环亮 0.9–1.0（v0.2.0 从 0.58–1.0 提亮；呼吸只做"明暗微颤"，不压流光） */
+@keyframes vy-ring-breath {
+  0% { opacity: 0.9; }
+  100% { opacity: 1; }
+}
+/* 副光晕呼吸 0.28–0.72（v0.2.0 从 0.18–0.55 放大） */
+@keyframes vy-halo-breath {
+  0% { opacity: 0.28; }
+  100% { opacity: 0.72; }
+}
+
+/* ── 5.6 HUD 强调：当前会话 / 当前 tab / 当前页 ────────────────────────────
+ *    稳定钩子（实测 markup）：会话行 role="treeitem" + aria-selected；
+ *    头部 tab 为 role="tab" + aria-selected；侧栏导航 aria-current="page"。
+ *    只加 inset 阴影与 background-image 渐变，不改尺寸/间距。 */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) :where(
+  [role="treeitem"][aria-selected="true"],
+  [aria-current="page"],
+  [aria-current="true"],
+  [class*="navCell" i][class*="active" i]
+) {
+  box-shadow: inset 2px 0 0 rgba(var(--vy-deco-2-rgb), 0.72);
+  background-image: linear-gradient(90deg, rgba(var(--vy-deco-rgb), 0.14), rgba(var(--vy-deco-rgb), 0) 72%);
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [role="tablist"] [role="tab"][aria-selected="true"] {
+  box-shadow: inset 0 -2px 0 rgba(var(--vy-deco-2-rgb), 0.85);
+}
+
+/* ── 5.7 玻璃表面高光（仅 glass 档）──────────────────────────────────────
+ *    宿主表面底色已由 §2.3 的半透明 token 接管；这里补 1px 高光描边/投影分层，
+ *    让侧栏 / 输入卡 / 菜单 / 弹窗在动态背景上"浮起来"。
+ *    所有属性只影响视觉（box-shadow / background-image），不改布局。 */
+
+/* 侧栏：右缘 1px 冷光分隔 + 左缘内高光 */
+html.dsh-vyron-skin--glass :where([class*="sidebarCol" i]) {
+  box-shadow: inset -1px 0 0 rgba(238, 242, 246, 0.07), inset 1px 0 0 rgba(238, 242, 246, 0.03);
+}
+
+/* 输入卡：内顶高光 + 深投影；聚焦时声呐环接管（见 5.5）
+ * v0.2.0：加一道极淡的斜向流光扫过卡面（alpha ≤0.06，background-position 动画；
+ * 渐变带宽 20%、背景尺寸 280% → 首尾两帧完全在卡外，循环无跳变；
+ * 只扫背景层，文字/控件在 content 层，对比度影响 ≤0.5:1，不压正文）。 */
+html.dsh-vyron-skin--glass [data-composer-card] {
+  background-image:
+    linear-gradient(112deg,
+      rgba(238, 242, 246, 0) 34%,
+      rgba(238, 242, 246, 0.035) 45%,
+      rgba(222, 240, 255, 0.06) 50%,
+      rgba(238, 242, 246, 0.035) 55%,
+      rgba(238, 242, 246, 0) 66%),
+    linear-gradient(180deg, rgba(238, 242, 246, 0.05), rgba(238, 242, 246, 0) 46%);
+  background-size: 280% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-position: 0% 0, 0 0;
+  box-shadow:
+    0 0 0 1px rgba(238, 242, 246, 0.09),
+    0 28px 60px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(238, 242, 246, 0.09);
+  animation: vy-composer-sweep 9.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes vy-composer-sweep {
+  0% { background-position: 0% 0, 0 0; }
+  65% { background-position: 100% 0, 0 0; }
+  100% { background-position: 100% 0, 0 0; }
+}
+
+/* 菜单 / 浮层：1px 高光描边 + 深投影（宿主的 40px 菜单模糊保持不动） */
+html.dsh-vyron-skin--glass :where(
+  [role="menu"],
+  [role="listbox"],
+  [class*="viewsMoreMenu" i],
+  [class*="moreMenu" i],
+  [class*="addMenu" i]
+) {
+  box-shadow:
+    0 0 0 1px rgba(238, 242, 246, 0.10),
+    0 18px 50px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(238, 242, 246, 0.07);
+}
+
+/* 弹窗：面板玻璃描边；遮罩本身的模糊/压暗由 --dsw-mask-blur 与 bg-mask 令牌驱动 */
+html.dsh-vyron-skin--glass :where(dialog, [class*="_dialog" i]) {
+  box-shadow:
+    0 0 0 1px rgba(238, 242, 246, 0.11),
+    0 40px 90px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(238, 242, 246, 0.08);
+}
+
+/* 代码块：左侧 2px 大气边缘光导轨（inset 阴影，不改 padding/宽度） */
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) .md-code-block {
+  box-shadow: inset 2px 0 0 rgba(var(--vy-deco-rgb), 0.32);
+}
+html.dsh-vyron-skin--glass .md-code-block {
+  box-shadow:
+    inset 2px 0 0 rgba(var(--vy-deco-rgb), 0.32),
+    inset 0 1px 0 rgba(238, 242, 246, 0.05);
+}
+
+/* ── 5.9 交接分区显影（.vyron-enter 契约，ROUND2-PLAN §4.5 / Lead 口径）──────
+ * 宿主 lib/splash.js：交接 done 后 ~300ms 给 <html> 加 .vyron-enter，~1300ms 移除；
+ * 本块所有动画总时长 ≤900ms + fill both，class 移除时已演完（或保持终态），无跳变。
+ * 编排（相对加类时刻）：
+ *   0ms    sidebar 先显影（520ms，opacity + 10px 横向滑入）
+ *   50ms   topbar 显影（500ms）
+ *   240ms  composer 区（[data-composer-seat]）次之（560ms）
+ *   340ms  topbar 日轨增亮（竖直光带落点，box-shadow 脉冲 540ms 内收）
+ *   0ms    ambient 900ms 淡入（现有 vy-ambient-in 强化：0→1 + 1.035→1 缩放）
+ * 只动 opacity / transform / box-shadow，不新增 DOM、不占布局、不改点击区域。 */
+html.dsh-vyron-skin--glass.vyron-enter #dsh-vyron-ambient {
+  animation: vy-ambient-in 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes vy-ambient-in {
+  0% { opacity: 0; transform: scale(1.035); }
+  55% { opacity: 0.86; }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+html.dsh-vyron-skin.vyron-enter :where([class*="sidebarCol" i]) {
+  animation: vy-enter-sidebar 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes vy-enter-sidebar {
+  0% { opacity: 0; transform: translate3d(-10px, 0, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+html.dsh-vyron-skin.vyron-enter #root header[data-window-drag] {
+  animation:
+    vy-enter-topbar 500ms cubic-bezier(0.16, 1, 0.3, 1) 50ms both,
+    vy-daybar-ignite 540ms ease-out 340ms both;
+}
+@keyframes vy-enter-topbar {
+  0% { opacity: 0; transform: translate3d(0, -6px, 0); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+/* 日轨增亮：竖直光带从 50% 扫到顶栏时，顶栏下缘（日轨条位置）闪一次冷光再收掉 */
+@keyframes vy-daybar-ignite {
+  0% { box-shadow: inset 0 0 rgba(var(--vy-deco-rgb), 0); }
+  28% { box-shadow: inset 0 -2px 26px rgba(var(--vy-deco-rgb), 0.5), inset 0 -1px 0 rgba(238, 242, 246, 0.55); }
+  100% { box-shadow: inset 0 0 rgba(var(--vy-deco-rgb), 0); }
+}
+
+html.dsh-vyron-skin.vyron-enter :where([data-composer-seat]) {
+  animation: vy-enter-composer 560ms cubic-bezier(0.16, 1, 0.3, 1) 240ms both;
+}
+@keyframes vy-enter-composer {
+  0% { opacity: 0; transform: translate3d(0, 8px, 0) scale(0.996); }
+  100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* ── 5.8 前层星点（仅 glass）：抗 #root 毛玻璃的清晰星场 ───────────────────
+ *    背景星场在 #root 的 13px 毛玻璃之后会被抹成雾；这一层画在 #root::before
+ *    （毛玻璃之上、宿主弹层之下 z-index:5），用 mask 把中央内容区挖空，
+ *    只在视口边缘呈现 18 颗清晰星点。pointer-events:none，不影响正文与点击。
+ *    颜色走 --vy-star-rgb（orbit 云白 / terra 云暖 / abyss 冷青）。 */
+html.dsh-vyron-skin--glass #root::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle 1.3px at 37.3% 97.0%, rgba(var(--vy-star-rgb), 0.39) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.7px at 10.6% 72.0%, rgba(var(--vy-star-rgb), 0.54) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.3px at 10.1% 81.0%, rgba(var(--vy-star-rgb), 0.49) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.8px at 90.7% 52.8%, rgba(var(--vy-star-rgb), 0.46) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.5px at 41.4% 70.9%, rgba(var(--vy-star-rgb), 0.6) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.3px at 83.9% 80.3%, rgba(var(--vy-star-rgb), 0.46) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 2.1px at 65.5% 55.5%, rgba(var(--vy-star-rgb), 0.36) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.9px at 73.5% 33.8%, rgba(var(--vy-star-rgb), 0.67) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.4px at 34.2% 59.6%, rgba(var(--vy-star-rgb), 0.51) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.7px at 5.1% 73.6%, rgba(var(--vy-star-rgb), 0.68) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.4px at 84.9% 64.1%, rgba(var(--vy-star-rgb), 0.69) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.7px at 79.2% 53.6%, rgba(var(--vy-star-rgb), 0.44) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.7px at 49.3% 57.3%, rgba(var(--vy-star-rgb), 0.71) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.0px at 20.1% 10.7%, rgba(var(--vy-star-rgb), 0.37) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 2.0px at 42.1% 26.9%, rgba(var(--vy-star-rgb), 0.82) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.3px at 31.4% 85.1%, rgba(var(--vy-star-rgb), 0.36) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 2.0px at 39.8% 61.0%, rgba(var(--vy-star-rgb), 0.66) 0 55%, rgba(var(--vy-star-rgb), 0) 60%),
+    radial-gradient(circle 1.8px at 52.8% 53.8%, rgba(var(--vy-star-rgb), 0.49) 0 55%, rgba(var(--vy-star-rgb), 0) 60%);
+  background-repeat: no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse 58% 52% at 50% 48%, transparent 56%, #000 90%);
+  mask-image: radial-gradient(ellipse 58% 52% at 50% 48%, transparent 56%, #000 90%);
+}
+
+/* ============================================================================
+ * 6. glass 档：动态星海背景（#dsh-vyron-ambient，纯 CSS，12 层）
+ * ----------------------------------------------------------------------------
+ * 分层（自底向上，与 client.js ambientMarkup() 顺序一一对应）：
+ *   va-base 深空渐变 → va-stars 双层星点 → va-earth 地球大气边缘光 →
+ *   va-cloud×4 超大模糊云（60–90s 错相漂移）→ va-sea 平台反射水平线 →
+ *   va-sheen 8.4s 呼吸光 → va-grain 颗粒 → va-vignette 暗角 → va-rim 边缘呼吸光
+ * z-index:-1 + body 透明 → 背景层落在 #root 之下；#root 单层 backdrop-filter
+ * （整窗毛玻璃，规格 §4.4「只给应用容器加 backdrop-filter」）。
+ * 性能边界：只在 4 个云层 + sheen + rim + stars 上声明 will-change/动画
+ *   （合成层数量见 docs/skin-spec.md「性能」）；所有动画只用 transform/opacity。
+ * 降级：--static / --paused / --noblur / prefers-reduced-motion /
+ *   prefers-reduced-transparency / @supports not (backdrop-filter)，见 §7。
+ * ========================================================================== */
+
+/* ── 6.1 画布：html 兜底底色 + body 透明 + #root 整窗毛玻璃 ───────────────── */
+html.dsh-vyron-skin--glass {
+  background-color: var(--vy-bg-0);
+}
+html.dsh-vyron-skin--glass body {
+  background-color: transparent;
+  background-image: none;
+}
+html.dsh-vyron-skin--glass #root {
+  backdrop-filter: blur(13px) saturate(150%) brightness(0.98);
+  -webkit-backdrop-filter: blur(13px) saturate(150%) brightness(0.98);
+}
+
+/* ── 6.2 背景容器 ────────────────────────────────────────────────────────── */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+  background: var(--vy-ab2);
+}
+
+/* 6.2.1 va-base：深空底色（顶部大气冷光 + 中心深空蓝 + 底部压暗） */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-base {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(58% 44% at 74% 12%, rgba(var(--vy-a1), 0.20) 0%, rgba(var(--vy-a1), 0) 62%),
+    radial-gradient(66% 48% at 16% 6%, rgba(var(--vy-a2), 0.28) 0%, rgba(var(--vy-a2), 0) 66%),
+    radial-gradient(120% 92% at 50% 114%, rgba(var(--vy-a2), 0.12) 0%, rgba(var(--vy-ab1), 0) 58%),
+    linear-gradient(180deg, var(--vy-ab0) 0%, var(--vy-ab1) 56%, var(--vy-ab2) 100%);
+}
+
+/* 6.2.2 va-stars：两层星点（box-shadow 星场 + 闪烁）。星点用 ::before/::after
+ *        两层，错相 6.8s / 9.6s 呼吸；透明度很低，只为"星海"提供细节，
+ *        不影响任何文字对比度（单像素点状光，非面状背景）。 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 1;
+  /* v0.2.0：星场整体 90s 慢速平移 2.4vmax（不是只闪烁）；twinkle 仍在 ::before/::after，
+   * 两层错相 6.8s/9.6s 不变。平移量控制在 2–4vmax/90s，肉眼是"星海在漂"而非闪烁。 */
+  will-change: transform;
+  animation: vy-stars-drift 90s ease-in-out infinite alternate;
+}
+/* 星场慢漂：90s 单程 2.4vmax 横向 + 1.6vmax 纵向（只动 transform，合成层平移） */
+@keyframes vy-stars-drift {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-2.4vmax, 1.6vmax, 0); }
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars::before,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: transparent;
+  will-change: opacity;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars::before {
+  width: 3px;
+  height: 3px;
+  box-shadow:
+      2.8vw 87.1vh 1.7px 1.1px rgba(var(--vy-star-rgb), 0.83),
+      51.3vw 24.97vh 2.1px 1.1px rgba(var(--vy-star-rgb), 0.76),
+      19.2vw 28.82vh 0.3px 1.1px rgba(var(--vy-star-rgb), 0.94),
+      37.34vw 93.1vh 1.6px 1.6px rgba(var(--vy-star-rgb), 0.61),
+      96.88vw 85.98vh 2.9px 0.6px rgba(var(--vy-star-rgb), 0.68),
+      38.43vw 24.04vh 2.4px 2.4px rgba(var(--vy-star-rgb), 0.76),
+      80.91vw 46.02vh 2.0px 0.1px rgba(var(--vy-star-rgb), 0.67),
+      47.24vw 31.75vh 1.5px 2.4px rgba(var(--vy-star-rgb), 0.99),
+      2.85vw 84.32vh 1.0px 0.8px rgba(var(--vy-star-rgb), 0.8),
+      89.79vw 54.34vh 2.9px 1.9px rgba(var(--vy-star-rgb), 0.71),
+      87.5vw 64.75vh 0.8px 1.9px rgba(var(--vy-star-rgb), 0.65),
+      88.04vw 69.13vh 1.4px 0.4px rgba(var(--vy-star-rgb), 0.84),
+      64.74vw 69.34vh 0.3px 0.1px rgba(var(--vy-star-rgb), 0.93),
+      24.44vw 0.01vh 0.5px 1.0px rgba(var(--vy-star-rgb), 0.67),
+      83.06vw 56.96vh 0.5px 0.8px rgba(var(--vy-star-rgb), 0.74),
+      56.31vw 23.42vh 1.4px 0.1px rgba(var(--vy-star-rgb), 0.7),
+      31.14vw 9.82vh 0.5px 2.1px rgba(var(--vy-star-rgb), 0.66),
+      36.3vw 74.69vh 0.6px 1.2px rgba(var(--vy-star-rgb), 0.74),
+      81.86vw 94.28vh 1.2px 1.0px rgba(var(--vy-star-rgb), 0.95),
+      64.76vw 71.62vh 2.7px 0.5px rgba(var(--vy-star-rgb), 0.61),
+      46.23vw 44.43vh 2.9px 0.8px rgba(var(--vy-star-rgb), 0.75),
+      81.8vw 0.23vh 1.4px 1.5px rgba(var(--vy-star-rgb), 0.93);
+  animation: vy-star-twinkle-a 6.8s ease-in-out infinite alternate;
+  animation-delay: -1.4s;
+}
+
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars::after {
+  width: 2px;
+  height: 2px;
+  box-shadow:
+      7.01vw 30.39vh 0.5px 0.9px rgba(var(--vy-star-rgb), 0.46),
+      40.03vw 92.02vh 0.6px 0.4px rgba(var(--vy-star-rgb), 0.39),
+      55.89vw 85.0vh 0.0px 0.7px rgba(var(--vy-star-rgb), 0.79),
+      70.5vw 0.2vh 0.4px 0.8px rgba(var(--vy-star-rgb), 0.71),
+      79.68vw 15.45vh 0.5px 0.1px rgba(var(--vy-star-rgb), 0.63),
+      54.32vw 20.45vh 0.9px 0.4px rgba(var(--vy-star-rgb), 0.61),
+      91.98vw 75.2vh 0.6px 0.8px rgba(var(--vy-star-rgb), 0.79),
+      22.76vw 43.98vh 0.3px 0.2px rgba(var(--vy-star-rgb), 0.57),
+      73.06vw 19.92vh 0.2px 0.0px rgba(var(--vy-star-rgb), 0.4),
+      59.8vw 4.51vh 0.5px 0.1px rgba(var(--vy-star-rgb), 0.68),
+      64.99vw 87.11vh 1.0px 1.0px rgba(var(--vy-star-rgb), 0.54),
+      31.6vw 67.66vh 0.7px 0.1px rgba(var(--vy-star-rgb), 0.46),
+      10.41vw 82.13vh 0.2px 0.4px rgba(var(--vy-star-rgb), 0.39),
+      36.17vw 65.71vh 1.0px 0.8px rgba(var(--vy-star-rgb), 0.72),
+      1.41vw 71.7vh 1.2px 0.2px rgba(var(--vy-star-rgb), 0.72),
+      44.44vw 42.77vh 1.0px 0.2px rgba(var(--vy-star-rgb), 0.72),
+      70.57vw 77.04vh 0.4px 0.2px rgba(var(--vy-star-rgb), 0.47),
+      27.35vw 44.99vh 0.3px 0.6px rgba(var(--vy-star-rgb), 0.57),
+      16.48vw 4.78vh 1.0px 0.8px rgba(var(--vy-star-rgb), 0.41),
+      2.15vw 0.88vh 0.5px 0.1px rgba(var(--vy-star-rgb), 0.5),
+      96.99vw 72.2vh 0.5px 0.4px rgba(var(--vy-star-rgb), 0.61),
+      23.05vw 41.14vh 0.4px 0.8px rgba(var(--vy-star-rgb), 0.62),
+      58.04vw 33.53vh 0.8px 0.4px rgba(var(--vy-star-rgb), 0.67),
+      81.53vw 49.56vh 0.8px 0.9px rgba(var(--vy-star-rgb), 0.76),
+      73.8vw 35.9vh 0.5px 0.4px rgba(var(--vy-star-rgb), 0.51),
+      4.03vw 68.33vh 0.3px 0.4px rgba(var(--vy-star-rgb), 0.67);
+  animation: vy-star-twinkle-b 9.6s ease-in-out infinite alternate;
+  animation-delay: -3.8s;
+}
+
+/* 6.2.3 va-earth：底部 55%–75% 的地球大气边缘光（径向渐变 + 生物光内晕）
+ * v0.2.0：呼吸振幅翻倍（opacity 0.55↔1.0，v0.1.0 是 0.78↔1.0）+ 2.2% scale 呼吸
+ * （以底边为原点向上"涨落"，读作大气在呼吸而不是整块在动）。 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-earth {
+  position: absolute;
+  left: -12%;
+  right: -12%;
+  bottom: -18%;
+  height: 78%;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  background:
+    radial-gradient(ellipse 92% 56% at 50% 132%, rgba(var(--vy-earth-rgb), 0) 58%, rgba(var(--vy-earth-rgb), 0.26) 68%, rgba(var(--vy-earth-rgb), 0) 78%),
+    radial-gradient(ellipse 74% 58% at 50% 120%, rgba(var(--vy-earth-rgb), 0.30) 0%, rgba(var(--vy-earth-rgb), 0.12) 34%, rgba(var(--vy-earth-rgb), 0) 62%),
+    radial-gradient(ellipse 58% 36% at 50% 114%, rgba(var(--vy-a3), 0.10) 0%, rgba(var(--vy-a3), 0) 58%);
+  animation: vy-earth-breath 8.4s ease-in-out infinite;
+}
+
+/* 6.2.4 va-cloud×4：四团超大模糊云，60–90s 错相漂移 + 各自呼吸。
+ *        用 vmax 尺寸保证任意宽高比都覆盖；mix-blend-mode:screen 只提亮不压暗。 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.va-c1,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.vc1 {
+  width: 62vmax;
+  height: 62vmax;
+  left: -16vmax;
+  top: -20vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(var(--vy-a1), 0.36) 0%, rgba(var(--vy-a1), 0.12) 38%, rgba(var(--vy-a1), 0) 70%);
+  animation: vy-cloud-a 66s ease-in-out infinite alternate, vy-cloud-glow-1 7.2s ease-in-out infinite alternate;
+  animation-delay: 0s, -1.2s;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.va-c2,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.vc2 {
+  width: 54vmax;
+  height: 54vmax;
+  right: -14vmax;
+  top: -12vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(var(--vy-a2), 0.42) 0%, rgba(var(--vy-a2), 0.13) 40%, rgba(var(--vy-a2), 0) 72%);
+  animation: vy-cloud-b 84s ease-in-out infinite alternate, vy-cloud-glow-2 8.4s ease-in-out infinite alternate;
+  animation-delay: 0s, -3.4s;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.va-c3,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.vc3 {
+  width: 70vmax;
+  height: 70vmax;
+  left: 16vmax;
+  bottom: -36vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(var(--vy-a1), 0.28) 0%, rgba(var(--vy-a1), 0.09) 42%, rgba(var(--vy-a1), 0) 74%);
+  animation: vy-cloud-c 72s ease-in-out infinite alternate, vy-cloud-glow-3 6.8s ease-in-out infinite alternate;
+  animation-delay: 0s, -2s;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.va-c4,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-cloud.vc4 {
+  width: 40vmax;
+  height: 40vmax;
+  right: 6vmax;
+  bottom: -10vmax;
+  background: radial-gradient(circle at 50% 50%, rgba(var(--vy-a3), 0.22) 0%, rgba(var(--vy-a3), 0.07) 44%, rgba(var(--vy-a3), 0) 76%);
+  animation: vy-cloud-d 90s ease-in-out infinite alternate, vy-cloud-glow-4 9.6s ease-in-out infinite alternate;
+  animation-delay: 0s, -7.3s;
+}
+
+/* 6.2.5 va-sea：底部平台反射（水平亮线 + 湿地反光） */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22%;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(180deg, rgba(var(--vy-sea-rgb), 0.10) 0 1px, transparent 1px 9px),
+    linear-gradient(180deg, rgba(var(--vy-sea-rgb), 0) 0%, rgba(var(--vy-sea-rgb), 0.06) 60%, rgba(var(--vy-sea-rgb), 0.12) 100%);
+  opacity: 0.55;
+}
+
+/* 6.2.6 va-sheen：8.4s 单频呼吸光（大尺度柔光，0%/100% 暗、50% 亮）
+ * v0.2.0：振幅 0.10↔0.40 → 0.06↔0.52（翻倍以上），叠加 ±1.5% scale 呼吸；
+ * 另加 2 层「极光帘幕」伪元素（::before / ::after，不新增 DOM）：斜向色带
+ * 以 84s / 90s 缓慢横移（transform 平移，合成层），只在 sheen 内部叠加。 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen {
+  position: absolute;
+  inset: -16%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: 0.32;
+  background:
+    radial-gradient(ellipse 92% 72% at 24% 62%, rgba(var(--vy-a1), 0.30) 0%, rgba(var(--vy-a1), 0) 68%),
+    radial-gradient(ellipse 72% 62% at 80% 32%, rgba(var(--vy-a2), 0.28) 0%, rgba(var(--vy-a2), 0) 70%),
+    radial-gradient(ellipse 56% 48% at 56% 92%, rgba(var(--vy-sheen-rgb), 0.06) 0%, rgba(var(--vy-sheen-rgb), 0) 72%);
+  /* 中央正文带轻微衰减（蒙版 52%→100%）：呼吸亮场主要落在四周/上下，
+   * 避免 8.4s 峰值把正文区背景抬得过亮（对比度不回退的关键保险）。 */
+  -webkit-mask-image: radial-gradient(ellipse 68% 54% at 50% 46%, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.9) 66%, #000 100%);
+  mask-image: radial-gradient(ellipse 68% 54% at 50% 46%, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.9) 66%, #000 100%);
+  animation: vy-sheen-breath 8.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+/* 极光帘幕 A：冷色主帘（大气青蓝 + 生物光边），84s 单程横移 5vmax */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::before,
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::after {
+  content: "";
+  position: absolute;
+  inset: -30% -42%;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::before {
+  background:
+    linear-gradient(104deg,
+      rgba(var(--vy-a1), 0) 10%, rgba(var(--vy-a1), 0.10) 25%, rgba(var(--vy-a1), 0.20) 32%,
+      rgba(var(--vy-a1), 0.05) 40%, rgba(var(--vy-a1), 0) 50%,
+      rgba(var(--vy-a3), 0) 62%, rgba(var(--vy-a3), 0.07) 72%, rgba(var(--vy-a3), 0.16) 79%,
+      rgba(var(--vy-a3), 0) 89%),
+    linear-gradient(180deg,
+      rgba(var(--vy-warm), 0) 28%, rgba(var(--vy-warm), 0.05) 48%,
+      rgba(var(--vy-a1), 0.08) 62%, rgba(var(--vy-a1), 0) 84%);
+  opacity: 0.8;
+  animation: vy-aurora-a 84s ease-in-out infinite alternate;
+}
+/* 极光帘幕 B：反向暖色副帘（云暖 + 深空蓝），90s 反向横移 → 两帘错相，读作天幕流动 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::after {
+  background:
+    linear-gradient(76deg,
+      rgba(var(--vy-warm), 0) 8%, rgba(var(--vy-warm), 0.07) 24%, rgba(var(--vy-warm), 0.15) 30%,
+      rgba(var(--vy-warm), 0.03) 38%, rgba(var(--vy-warm), 0) 48%,
+      rgba(var(--vy-a2), 0) 58%, rgba(var(--vy-a1), 0.08) 70%, rgba(var(--vy-a1), 0.15) 77%,
+      rgba(var(--vy-a1), 0) 89%);
+  opacity: 0.62;
+  animation: vy-aurora-b 90s ease-in-out infinite alternate;
+}
+
+/* 6.2.7 va-grain：颗粒（SVG 噪声，soft-light；面状不透明度 0.05，不改变文字对比度） */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.8'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* 6.2.8 va-vignette：暗角（压暗四角，中央正文区不受影响） */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(132% 120% at 50% 44%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.46) 100%);
+}
+
+/* 6.2.9 va-rim：视口边缘呼吸光（大气边缘光，8.4s 与 sheen 同频同相）
+ * v0.2.0：振幅 0.16↔0.50 → 0.10↔0.62（翻倍以上）+ 1.4% scale 呼吸（四周一起"涨"）。 */
+html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-rim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(140% 120% at 50% 42%, rgba(var(--vy-a1), 0) 54%, rgba(var(--vy-a1), 0.26) 88%, rgba(var(--vy-a2), 0.34) 100%);
+  opacity: 0.36;
+  animation: vy-rim-breath 8.4s ease-in-out infinite;
+}
+
+/* ── 6.3 关键帧：60–90s 错相漂移 + 8.4s 呼吸 ───────────────────────────── */
+@keyframes vy-cloud-a {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(9vmax, 7vmax, 0) scale(1.22); }
+}
+@keyframes vy-cloud-b {
+  0% { transform: translate3d(0, 0, 0) scale(1.08); }
+  100% { transform: translate3d(-11vmax, 9vmax, 0) scale(0.9); }
+}
+@keyframes vy-cloud-c {
+  0% { transform: translate3d(0, 0, 0) scale(1); }
+  100% { transform: translate3d(-13vmax, -6vmax, 0) scale(1.18); }
+}
+@keyframes vy-cloud-d {
+  0% { transform: translate3d(0, 0, 0) scale(1.12); }
+  100% { transform: translate3d(7vmax, -9vmax, 0) scale(0.94); }
+}
+@keyframes vy-cloud-glow-1 { 0% { opacity: 0.55; } 100% { opacity: 1; } }
+@keyframes vy-cloud-glow-2 { 0% { opacity: 0.50; } 100% { opacity: 1; } }
+@keyframes vy-cloud-glow-3 { 0% { opacity: 0.45; } 100% { opacity: 1; } }
+@keyframes vy-cloud-glow-4 { 0% { opacity: 0.55; } 100% { opacity: 1; } }
+@keyframes vy-sheen-breath {
+  /* v0.2.0：opacity 0.06↔0.52（振幅 0.46，约 v0.1.0 0.30 的 1.5 倍）+ ±1.5% scale 呼吸 */
+  0%, 100% { transform: translate3d(-1.8%, 1.2%, 0) scale(0.985); opacity: 0.06; }
+  50% { transform: translate3d(1.8%, -1.2%, 0) scale(1.015); opacity: 0.52; }
+}
+@keyframes vy-earth-breath {
+  /* v0.2.0：opacity 0.55↔1.0（振幅 0.45，v0.1.0 为 0.22）+ 2.2% 由底向上的 scale 呼吸 */
+  0%, 100% { opacity: 0.55; transform: scale(0.995); }
+  50% { opacity: 1; transform: scale(1.022); }
+}
+@keyframes vy-rim-breath {
+  /* v0.2.0：opacity 0.10↔0.62（振幅 0.52，v0.1.0 为 0.34）+ 1.4% scale */
+  0%, 100% { opacity: 0.10; transform: scale(0.993); }
+  50% { opacity: 0.62; transform: scale(1.014); }
+}
+@keyframes vy-aurora-a {
+  0% { transform: translate3d(-4vmax, 1.5vmax, 0) scale(1.02) rotate(-0.4deg); }
+  100% { transform: translate3d(5vmax, -1.5vmax, 0) scale(1.08) rotate(0.4deg); }
+}
+@keyframes vy-aurora-b {
+  0% { transform: translate3d(3.5vmax, -2vmax, 0) scale(1.06) rotate(0.5deg); }
+  100% { transform: translate3d(-4.5vmax, 2vmax, 0) scale(0.98) rotate(-0.5deg); }
+}
+@keyframes vy-star-twinkle-a { 0% { opacity: 0.35; } 100% { opacity: 0.95; } }
+@keyframes vy-star-twinkle-b { 0% { opacity: 0.75; } 100% { opacity: 0.25; } }
+
+/* ============================================================================
+ * 7. 浅色宿主（昼面）：玻璃档背景与表面改为"亮色半透 + 深色文字"
+ * ----------------------------------------------------------------------------
+ * 判定：宿主明暗 = <body data-ds-dark-theme> 是否存在（浅色 = 无该属性）。
+ * 语义：深色宿主是"夜面星海"，浅色宿主是"昼面轨道"——同一套星球资产的白昼侧，
+ *       不是简单反色：天光=浅空蓝白，地球弧光=海蓝，云=白，暗角=浅蓝灰。
+ * 硬约束：浅色下正文对比度重测 ≥4.5:1（见 docs/skin-spec.md）；
+ *         玻璃表面用亮色半透 token（§2.4），禁止白底白字。
+ * ========================================================================== */
+
+/* ── 7.1 画布：浅色兜底 + 整窗毛玻璃偏亮 ─────────────────────────────────── */
+html.dsh-vyron-skin--glass:not(:has(body[data-ds-dark-theme])) {
+  background-color: var(--vy-l-bg-0);
+}
+html.dsh-vyron-skin--glass:not(:has(body[data-ds-dark-theme])) #root {
+  backdrop-filter: blur(22px) saturate(130%) brightness(1.02);
+  -webkit-backdrop-filter: blur(22px) saturate(130%) brightness(1.02);
+}
+
+/* ── 7.2 昼面星空背景：base / stars / earth / clouds / sea / sheen / grain /
+ *        vignette / rim 全部换色（结构不变，仍为 12 层）───────────────────── */
+
+/* base：天光渐变（顶部冷蓝 → 中部亮白 → 底部海蓝） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-base {
+  background:
+    radial-gradient(52% 42% at 78% 10%, rgba(255, 250, 235, 0.85) 0%, rgba(255, 250, 235, 0) 62%),
+    radial-gradient(70% 52% at 12% 4%, rgba(var(--vy-la1), 0.20) 0%, rgba(var(--vy-la1), 0) 66%),
+    radial-gradient(120% 96% at 50% 118%, rgba(var(--vy-la2), 0.34) 0%, rgba(var(--vy-lab1), 0) 60%),
+    linear-gradient(180deg, var(--vy-lab0) 0%, var(--vy-lab1) 52%, var(--vy-lab2) 100%);
+}
+
+/* stars：白昼看不到星，保留层但几乎透明（只留一点高空尘点），避免"星空压白底" */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-stars {
+  opacity: 0.05;
+}
+
+/* earth：底部地球弧光（海蓝 + 沙金暖边） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-earth {
+  background:
+    radial-gradient(ellipse 74% 58% at 50% 122%, rgba(var(--vy-learth-rgb), 0.34) 0%, rgba(var(--vy-learth-rgb), 0.14) 34%, rgba(var(--vy-learth-rgb), 0) 64%),
+    radial-gradient(ellipse 58% 34% at 50% 116%, rgba(var(--vy-lwarm), 0.20) 0%, rgba(var(--vy-lwarm), 0) 58%);
+}
+
+/* clouds：四团白云（screen 混合在亮底上会过曝，改用 normal + 低透明度） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud {
+  mix-blend-mode: normal;
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.va-c1,
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.vc1 {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.72) 0%, rgba(255, 255, 255, 0.22) 40%, rgba(255, 255, 255, 0) 72%);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.va-c2,
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.vc2 {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.58) 0%, rgba(214, 232, 250, 0.24) 44%, rgba(255, 255, 255, 0) 74%);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.va-c3,
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.vc3 {
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.46) 0%, rgba(255, 255, 255, 0.12) 44%, rgba(255, 255, 255, 0) 76%);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.va-c4,
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-cloud.vc4 {
+  background: radial-gradient(circle at 50% 50%, rgba(var(--vy-lsea-rgb), 0.14) 0%, rgba(var(--vy-lsea-rgb), 0.05) 46%, rgba(var(--vy-lsea-rgb), 0) 76%);
+}
+
+/* sea：白昼海面反光 */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-sea {
+  background:
+    repeating-linear-gradient(180deg, rgba(var(--vy-lsea-rgb), 0.10) 0 1px, transparent 1px 10px),
+    linear-gradient(180deg, rgba(var(--vy-lsea-rgb), 0) 0%, rgba(var(--vy-lsea-rgb), 0.10) 60%, rgba(var(--vy-lsea-rgb), 0.18) 100%);
+  opacity: 0.42;
+}
+
+/* sheen：白昼日光呼吸（暖白色柔光） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-sheen {
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse 92% 72% at 26% 58%, rgba(255, 255, 255, 0.52) 0%, rgba(255, 255, 255, 0) 66%),
+    radial-gradient(ellipse 72% 62% at 82% 28%, rgba(var(--vy-lsheen-rgb), 0.42) 0%, rgba(var(--vy-lsheen-rgb), 0) 70%),
+    radial-gradient(ellipse 56% 48% at 56% 92%, rgba(var(--vy-lwarm), 0.12) 0%, rgba(var(--vy-lwarm), 0) 72%);
+}
+
+/* grain：白昼颗粒用深色噪点、更低不透明度，避免脏底 */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-grain {
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+}
+
+/* vignette：浅蓝灰暗角（轻微，不压文字区） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-vignette {
+  background: radial-gradient(132% 120% at 50% 44%, rgba(120, 150, 185, 0) 52%, rgba(58, 92, 130, 0.20) 100%);
+}
+
+/* rim：白昼边缘光（浅蓝） */
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) #dsh-vyron-ambient .va-rim {
+  background:
+    radial-gradient(140% 120% at 50% 42%, rgba(var(--vy-la1), 0) 54%, rgba(var(--vy-la1), 0.14) 88%, rgba(var(--vy-la2), 0.18) 100%);
+}
+
+/* ── 7.3 浅色下的装饰层浓度回拨（保持 ≥3:1 但不刺痛）──────────────────── */
+html.dsh-vyron-skin--full body:not([data-ds-dark-theme]) #root header[data-window-drag]::after {
+  color: rgba(51, 70, 92, 0.92);
+  background-color: rgba(255, 255, 255, 0.62);
+  border-color: rgba(47, 127, 216, 0.28);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) :where([class*="sidebarCol" i]) {
+  box-shadow: inset -1px 0 0 rgba(10, 22, 40, 0.08), inset 1px 0 0 rgba(255, 255, 255, 0.5);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) [data-composer-card] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0) 46%);
+  box-shadow:
+    0 0 0 1px rgba(10, 22, 40, 0.10),
+    0 24px 54px rgba(30, 60, 100, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) :where(
+  [role="menu"],
+  [role="listbox"],
+  [class*="viewsMoreMenu" i],
+  [class*="moreMenu" i],
+  [class*="addMenu" i]
+) {
+  box-shadow:
+    0 0 0 1px rgba(10, 22, 40, 0.12),
+    0 18px 44px rgba(30, 60, 100, 0.20),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) :where(dialog, [class*="_dialog" i]) {
+  box-shadow:
+    0 0 0 1px rgba(10, 22, 40, 0.12),
+    0 36px 80px rgba(30, 60, 100, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+/* ============================================================================
+ * 8. 降级路径（静态 / 暂停 / 无模糊 / 减弱动态 / 减弱透明）
+ * ----------------------------------------------------------------------------
+ * 触发来源（client.js 契约 + 纯 CSS 兜底）：
+ *   html.dsh-vyron-skin--static  ← skinMotion=false 或 reducedMotion=true 或
+ *                                  navigator.hardwareConcurrency≤4（低配）
+ *   html.dsh-vyron-skin--paused  ← document.hidden（页面后台）
+ *   html.dsh-vyron-skin--noblur  ← !CSS.supports('backdrop-filter')
+ *   @media (prefers-reduced-motion: reduce)      ← 系统减弱动态（CSS 兜底）
+ *   @media (prefers-reduced-transparency: reduce) ← 系统减弱透明（CSS 兜底）
+ *   @supports not (backdrop-filter ...)          ← 浏览器能力兜底
+ * 降级语义：动画 → 静帧；玻璃 → 实心半透（可读性优先）；布局/字号/颜色语义不变。
+ * ========================================================================== */
+
+/* ── 8.1 static：星海背景与声呐环全部停在首帧（静态星海 = 一帧完整构图）──── */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient,
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient * {
+  animation: none !important;
+  /* 静态档不再需要合成层：释放 will-change，降低低配机器的常驻显存 */
+  will-change: auto;
+}
+/* v0.2.0 fix（verifier 验收反馈）：上面的 `#dsh-vyron-ambient *` 只匹配元素、
+ * 不匹配伪元素。星场 twinkle（.va-stars::before/::after）与极光帘幕
+ * （.va-sheen::before/::after）必须显式覆盖，否则 --static 下仍有动画在跑。 */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient *::before,
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient *::after {
+  animation: none !important;
+  will-change: auto;
+}
+/* v0.2.0：静态帧 = 呼吸中值附近（既有构图层次、又不是最暗），并停掉新增的点缀动画 */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient .va-sheen {
+  opacity: 0.3;
+}
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient .va-earth {
+  opacity: 0.85;
+}
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static #dsh-vyron-ambient .va-rim {
+  opacity: 0.36;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static [data-composer-card]::before {
+  animation: none;
+  opacity: 0.95;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static [data-composer-card]::after {
+  animation: none;
+  opacity: 0.42;
+}
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static [data-composer-card] {
+  animation: none;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static #root header[data-window-drag]::after {
+  animation: none;
+  opacity: 0.9;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static #root header[data-window-drag]::before,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static :where([class*="sidebarCol" i])::before,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--static :where([class*="sidebarCol" i])::after {
+  animation: none;
+}
+/* static 下交接分区显影也直接给终态（不播动画） */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--static.vyron-enter #dsh-vyron-ambient,
+html.dsh-vyron-skin.dsh-vyron-skin--static.vyron-enter :where([class*="sidebarCol" i]),
+html.dsh-vyron-skin.dsh-vyron-skin--static.vyron-enter #root header[data-window-drag],
+html.dsh-vyron-skin.dsh-vyron-skin--static.vyron-enter :where([data-composer-seat]) {
+  animation: none !important;
+}
+
+/* ── 8.2 paused：页面后台暂停全部动画（不销毁、回来继续）───────────────── */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--paused #dsh-vyron-ambient,
+html.dsh-vyron-skin--glass.dsh-vyron-skin--paused #dsh-vyron-ambient * {
+  animation-play-state: paused !important;
+}
+/* v0.2.0 fix：同上，ambient 内伪元素（星场 twinkle / 极光帘幕）也要被 paused 命中 */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--paused #dsh-vyron-ambient *::before,
+html.dsh-vyron-skin--glass.dsh-vyron-skin--paused #dsh-vyron-ambient *::after {
+  animation-play-state: paused !important;
+}
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused [data-composer-card],
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused #root header[data-window-drag]::before,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused #root header[data-window-drag]::after,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused :where([class*="sidebarCol" i])::before,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused :where([class*="sidebarCol" i])::after,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused [data-composer-card]::before,
+html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass).dsh-vyron-skin--paused [data-composer-card]::after {
+  animation-play-state: paused;
+}
+
+/* ── 8.3 noblur：不支持 backdrop-filter → 玻璃改实心（背景层保留但不透出）── */
+html.dsh-vyron-skin--glass.dsh-vyron-skin--noblur #root {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+html.dsh-vyron-skin--glass.dsh-vyron-skin--noblur,
+html.dsh-vyron-skin--glass.dsh-vyron-skin--noblur body {
+  --dsw-alias-bg-base: var(--vy-bg-base);
+  --dsw-alias-bg-document-preview: var(--vy-doc-preview);
+  --dsw-alias-bg-layer-1: var(--vy-layer-1);
+  --dsw-alias-bg-layer-2: var(--vy-layer-2);
+  --dsw-alias-bg-layer-3: var(--vy-layer-3);
+  --dsw-alias-bg-module-platform: var(--vy-platform);
+  --dsw-alias-bg-multi-select: var(--vy-multi);
+  --dsw-alias-bg-overlay: var(--vy-overlay);
+  --dsw-specific-sidebar-fill: var(--vy-sidebar);
+  --dsw-specific-input-major: var(--vy-input);
+  --dsw-specific-bubble: var(--vy-bubble);
+  --dsw-specific-bubble-highlight: var(--vy-bubble-hi);
+  --dsw-menu-surface-fill: rgba(var(--vy-menu), 0.96);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--vy-selector);
+  --dsw-specific-tip: var(--vy-tip);
+  --dsw-specific-login-input: var(--vy-login);
+  --dsw-specific-sidebar-nav-item-active: var(--vy-nav-active);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--vy-nav-accent);
+  --dsw-specific-sidebar-nav-item-hover: var(--vy-nav-hover);
+}
+html.dsh-vyron-skin--glass.dsh-vyron-skin--noblur body:not([data-ds-dark-theme]) {
+  --dsw-alias-bg-base: var(--vy-l-bg-base);
+  --dsw-alias-bg-document-preview: var(--vy-l-doc-preview);
+  --dsw-alias-bg-layer-1: var(--vy-l-layer-1);
+  --dsw-alias-bg-layer-2: var(--vy-l-layer-2);
+  --dsw-alias-bg-layer-3: var(--vy-l-layer-3);
+  --dsw-alias-bg-module-platform: var(--vy-l-platform);
+  --dsw-alias-bg-multi-select: var(--vy-l-multi);
+  --dsw-alias-bg-overlay: var(--vy-l-overlay);
+  --dsw-specific-sidebar-fill: var(--vy-l-sidebar);
+  --dsw-specific-input-major: var(--vy-l-input);
+  --dsw-specific-bubble: var(--vy-l-bubble);
+  --dsw-specific-bubble-highlight: var(--vy-l-bubble-hi);
+  --dsw-menu-surface-fill: rgba(var(--vy-l-menu), 0.96);
+  --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  --dsw-specific-selector: var(--vy-l-selector);
+  --dsw-specific-tip: var(--vy-l-tip);
+  --dsw-specific-login-input: var(--vy-l-login);
+  --dsw-specific-sidebar-nav-item-active: var(--vy-l-nav-active);
+  --dsw-specific-sidebar-nav-item-active-accent: var(--vy-l-nav-accent);
+  --dsw-specific-sidebar-nav-item-hover: var(--vy-l-nav-hover);
+}
+
+/* ── 8.4 浏览器能力兜底：不支持 backdrop-filter 时等同 noblur ────────────── */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  html.dsh-vyron-skin--glass #root {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  html.dsh-vyron-skin--glass,
+  html.dsh-vyron-skin--glass body {
+    --dsw-alias-bg-base: var(--vy-bg-base);
+    --dsw-alias-bg-layer-1: var(--vy-layer-1);
+    --dsw-alias-bg-layer-2: var(--vy-layer-2);
+    --dsw-alias-bg-layer-3: var(--vy-layer-3);
+    --dsw-specific-sidebar-fill: var(--vy-sidebar);
+    --dsw-specific-input-major: var(--vy-input);
+    --dsw-menu-surface-fill: rgba(var(--vy-menu), 0.96);
+    --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  }
+  html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) {
+    --dsw-alias-bg-base: var(--vy-l-bg-base);
+    --dsw-alias-bg-layer-1: var(--vy-l-layer-1);
+    --dsw-alias-bg-layer-2: var(--vy-l-layer-2);
+    --dsw-alias-bg-layer-3: var(--vy-l-layer-3);
+    --dsw-specific-sidebar-fill: var(--vy-l-sidebar);
+    --dsw-specific-input-major: var(--vy-l-input);
+    --dsw-menu-surface-fill: rgba(var(--vy-l-menu), 0.96);
+    --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  }
+}
+
+/* ── 8.5 不支持 mask-composite 时声呐环退化为 1px 实色内描边（泛光隐藏）──── */
+@supports not ((mask-composite: exclude) or (-webkit-mask-composite: xor)) {
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::before {
+    -webkit-mask: none;
+    mask: none;
+    padding: 0;
+    background: none;
+    box-shadow: inset 0 0 0 1px rgba(var(--vy-ring-a), 0.42);
+    animation: none;
+    opacity: 0.9;
+  }
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::after {
+    content: none;
+  }
+}
+
+/* ── 8.6 系统"减弱动态"：减动态（不是全灭）——v0.2.0 口径（Lead 裁决）────────
+ * 背景：用户真机 Windows「动画效果」关闭 → 系统级 prefers-reduced-motion:reduce；
+ * 若按 v0.1.0 的"全灭"兜底，用户显式开启的 skinMotion=true 会被 OS 默认覆盖，
+ * 皮肤退化成 0 动态（"呼吸感 / 流光"验收必挂）。故本档语义改为：
+ *   ✗ 停掉：大位移 / 缩放 / 漂移（前庭风险源）——ambient 内 transform 全部置 none；
+ *           stars / 极光帘幕这类纯 transform 漂移层直接 animation:none；
+ *   ✓ 保留：低频 opacity 呼吸（8.4s，远低于 WCAG 闪烁阈值）、composer 低速流光
+ *           （9s/圈、亮度 ×0.82）+ 6.4s 呼吸、分区显影的 opacity 淡入（位移置 none）。
+ * 注意：--static（skinMotion=false / reducedMotion 设置 / 低配）仍是"全静态"完整兜底。 */
+@media (prefers-reduced-motion: reduce) {
+  /* ① 环境层：大位移/缩放/漂移全停（!important 覆盖 animation 关键帧里的 transform） */
+  html.dsh-vyron-skin--glass #dsh-vyron-ambient * {
+    transform: none !important;
+    will-change: auto;
+  }
+  html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-stars,
+  html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::before,
+  html.dsh-vyron-skin--glass #dsh-vyron-ambient .va-sheen::after {
+    animation: none; /* 纯 transform 漂移层：直接停动画，省合成层 */
+  }
+  /* ② composer：保留低速流光（9s/圈）并降对比；6.4s 呼吸保留 */
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::before {
+    animation: vy-sonar-spin 9s linear infinite, vy-ring-breath 6.4s ease-in-out infinite alternate;
+    filter: brightness(0.82) saturate(0.96);
+  }
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]::after {
+    animation: vy-sonar-spin 9s linear infinite reverse, vy-halo-breath 6.4s ease-in-out infinite alternate;
+    filter: blur(7px) brightness(0.86);
+  }
+  /* 聚焦提亮在 reduce 下按同一比例放大（0.82 × 1.2 ≈ 0.98） */
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]:focus-within::before {
+    filter: brightness(0.98) saturate(1.04);
+  }
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) [data-composer-card]:focus-within::after {
+    filter: blur(7px) brightness(1.02);
+  }
+  /* 卡面斜向流光扫过（background-position 位移）在 reduce 下停掉 */
+  html.dsh-vyron-skin--glass [data-composer-card] {
+    animation: none;
+  }
+  /* ③ 侧栏底部 micrographics：停位流漂移，保留 8.4s 呼吸 */
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) :where([class*="sidebarCol" i])::after {
+    animation: vy-micro-breath 8.4s ease-in-out infinite;
+  }
+  /* ④ 日轨游标光晕：停缩放，保留 opacity 呼吸 */
+  html.dsh-vyron-skin:is(.dsh-vyron-skin--full, .dsh-vyron-skin--glass) #root header[data-window-drag]::before {
+    transform: none !important;
+  }
+  /* ⑤ 分区显影：保留 opacity 淡入，位移置 none（opacity 动画仍由 5.9 驱动） */
+  html.dsh-vyron-skin.vyron-enter :where([class*="sidebarCol" i], #root header[data-window-drag], [data-composer-seat]) {
+    transform: none !important;
+  }
+}
+
+/* ── 8.7 系统"减弱透明"：玻璃改实心毛玻璃（背景层压暗，正文对比度不塌）──── */
+@media (prefers-reduced-transparency: reduce) {
+  html.dsh-vyron-skin--glass #root {
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+  }
+  html.dsh-vyron-skin--glass,
+  html.dsh-vyron-skin--glass body {
+    --dsw-alias-bg-base: color-mix(in srgb, var(--vy-bg-base) 94%, transparent);
+    --dsw-alias-bg-layer-1: var(--vy-layer-1);
+    --dsw-alias-bg-layer-2: var(--vy-layer-2);
+    --dsw-alias-bg-layer-3: var(--vy-layer-3);
+    --dsw-specific-sidebar-fill: var(--vy-sidebar);
+    --dsw-specific-input-major: var(--vy-input);
+    --dsw-menu-surface-fill: rgba(var(--vy-menu), 0.98);
+    --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  }
+  html.dsh-vyron-skin--glass body:not([data-ds-dark-theme]) {
+    --dsw-alias-bg-base: color-mix(in srgb, var(--vy-l-bg-base) 94%, transparent);
+    --dsw-alias-bg-layer-1: var(--vy-l-layer-1);
+    --dsw-alias-bg-layer-2: var(--vy-l-layer-2);
+    --dsw-alias-bg-layer-3: var(--vy-l-layer-3);
+    --dsw-specific-sidebar-fill: var(--vy-l-sidebar);
+    --dsw-specific-input-major: var(--vy-l-input);
+    --dsw-menu-surface-fill: rgba(var(--vy-l-menu), 0.98);
+    --dsw-specific-menu: var(--dsw-menu-surface-fill);
+  }
+}

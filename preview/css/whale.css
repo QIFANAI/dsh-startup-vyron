@@ -1,0 +1,170 @@
+/* ============================================================================
+ * VYRON 星海鲸航 — 大白鱼 / 尾迹 / morph 样式（whale-art 所有）v0.2 ROUND2
+ * ----------------------------------------------------------------------------
+ * 作用域：.vy-whale-root（鲸鱼 DOM 层，z-index 9）与 .vy-whale-fx（鲸体+尾迹 canvas，z-index 8）。
+ * 只做几何与静态样式，不做时间逻辑：所有运动由 preview/js/whale.js 在 update(t, ctx) 里按
+ * 主时钟计算后写进 canvas 或 inline transform（?t= 定格时也能精确复现单帧）。
+ *
+ * ROUND2 结构变化：
+ *   - 鲸体从「内联 SVG + CSS 滤镜」改为 **canvas 逐帧渲染**（体表渐变/焦散/边缘光/鳍/眼/
+ *     反射都在 whale.js 的 canvas 管线里），因此本文件不再承担鲸体材质；
+ *     `.vy-whale-swim` 只作为 canvas 2d 不可用时的降级鲸体（内联 SVG），默认 display:none。
+ *   - 尾迹同样画在 canvas（tapered ribbon + 粒子 + 刻度），本文件只管图层与降级。
+ *   - DOM 只剩：morph 后的官方鱼标、鱼标呼吸光晕、P5 声呐环（全部 z-index 9，位于 canvas 之上）。
+ * 数值权威：docs/design-spec.md §3 P3/P4、§7 模块契约、_handoff/ROUND2-PLAN.md §4.3。
+ * 层级：engine canvas(1) < iris(3) < whale canvas 尾迹+鲸体(8) < 鱼标/光晕/声呐环(9)
+ *       < 锁版(11) < 闪白(15)
+ * ========================================================================== */
+
+/* ── 0. 本地 token（与 docs design-spec §2.1 同步；不覆盖宿主或舞台变量） ──── */
+.vy-whale-root,
+.vy-whale-fx {
+  --vy-whale-cloud: #eef2f6;   /* 云白：鲸体主色 */
+  --vy-whale-bio: #7ef0d4;     /* 生物光青：尾迹/声呐环 */
+  --vy-whale-rim: #57a8ff;     /* 大气边缘蓝：尾迹冷端/辉光 */
+  --vy-whale-ink: #0a1424;     /* 深空层：morph 后鱼标的描边阴影 */
+}
+
+/* ── 1. 鲸体 + 尾迹 canvas（鲸体/尾迹都在这一层；位于鱼标 DOM 之下） ──────── */
+.vy-whale-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 260ms linear;
+}
+.vy-whale-fx.is-on { opacity: 1; }
+
+/* ── 2. 鲸鱼 DOM 层（morph 鱼标 / 呼吸光晕 / 声呐环） ─────────────────────── */
+.vy-whale-root {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  overflow: hidden;
+  perspective: 1400px;
+  perspective-origin: 50% 46%;
+}
+.vy-whale-layer {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* 2.0 canvas 不可用时的降级鲸体（内联 SVG；正常路径恒为 display:none，由 JS 控制） */
+.vy-whale-swim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 520px;
+  height: 260px;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  display: none;
+  will-change: transform, opacity;
+}
+.vy-whale-swim svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--vy-whale-cloud);
+}
+/* 降级路径的静态一次性滤镜（正常路径不走这里，避免每帧重栅格化） */
+.vy-whale-swim svg #whale-body {
+  filter: drop-shadow(0 7px 20px rgba(5, 10, 22, 0.55)) drop-shadow(0 0 26px rgba(87, 168, 255, 0.42));
+}
+.vy-whale-swim svg #whale-tail,
+.vy-whale-swim svg #whale-fin,
+.vy-whale-swim svg #whale-dorsal {
+  filter: drop-shadow(0 4px 12px rgba(5, 10, 22, 0.45));
+}
+
+/* 2.2 morph 后的官方 DSH 鱼标（落在 #vyMarkSlot 中心，z 在 canvas 之上） */
+.vy-whale-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 84px;
+  height: 84px;
+  opacity: 0;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  color: var(--vy-whale-cloud);
+}
+.vy-whale-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: var(--vy-whale-cloud);
+  filter: drop-shadow(0 0 10px rgba(87, 168, 255, 0.62)) drop-shadow(0 0 34px rgba(126, 240, 212, 0.26));
+}
+/* 鱼标背后的呼吸光晕（JS 只改 opacity/transform，不改滤镜） */
+.vy-whale-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1);
+  background: radial-gradient(
+    circle closest-side,
+    rgba(126, 240, 212, 0.30) 0%,
+    rgba(87, 168, 255, 0.16) 42%,
+    rgba(10, 20, 36, 0) 72%
+  );
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* 2.3 P5 声呐环（鱼标爆发；JS 驱动 scale/opacity，不使用 CSS 动画以保定格可复现） */
+.vy-whale-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 120px;
+  height: 120px;
+  margin: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(126, 240, 212, 0.62);
+  box-shadow: 0 0 12px rgba(126, 240, 212, 0.24), inset 0 0 10px rgba(126, 240, 212, 0.12);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.2);
+  pointer-events: none;
+}
+.vy-whale-ring.is-alt {
+  border-color: rgba(87, 168, 255, 0.5);
+  box-shadow: 0 0 14px rgba(87, 168, 255, 0.22), inset 0 0 12px rgba(87, 168, 255, 0.1);
+}
+
+/* ── 3. 降级：减弱动态 / 定格 ────────────────────────────────────────────── */
+/* reduced：不游动，无尾迹/无鲸体鬼影（JS 会 clearFx + 隐藏降级 SVG），只留官方鱼标 */
+html.vy-reduced .vy-whale-swim {
+  will-change: auto;
+  filter: none;
+}
+html.vy-reduced .vy-whale-glow { mix-blend-mode: normal; }
+html.vy-reduced .vy-whale-fx { transition: none; }
+
+/* ?t= 定格：JS 已按 t 精确渲染单帧，这里只关掉任何过渡，避免截图取到中间态 */
+html.vy-frozen .vy-whale-fx { transition: none; }
+
+/* ── 4. 窄屏 / 竖屏：鲸鱼占比略降，鱼标不再与字标抢宽 ─────────────────────── */
+@media (max-width: 860px), (orientation: portrait) {
+  .vy-whale-swim { width: 340px; height: 170px; }
+  .vy-whale-glow { width: 150px; height: 150px; }
+}
+
+/* ── 5. 高对比/非暗色兜底：鲸体与鱼标用云白，背景亮时加一圈深空描边保证可见 ── */
+@media (forced-colors: active) {
+  .vy-whale-swim svg { forced-color-adjust: none; color: CanvasText; }
+  .vy-whale-mark svg { forced-color-adjust: none; color: CanvasText; }
+}

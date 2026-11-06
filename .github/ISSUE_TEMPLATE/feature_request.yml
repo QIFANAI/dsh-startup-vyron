@@ -1,0 +1,37 @@
+name: Feature request
+description: 功能 / 视觉 / 性能建议
+title: '[feat] '
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        建议前请先阅读 [docs/design-spec.md](../docs/design-spec.md)（唯一设计权威源）与 [ASSETS.md](../ASSETS.md)（素材边界）。
+  - type: textarea
+    id: goal
+    attributes:
+      label: 想解决什么
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议方案
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 涉及模块
+      multiple: true
+      options:
+        - 启动动画（preview / splash）
+        - 宿主注入（lib/index.js）
+        - 皮肤（lib/skin.css / client.js）
+        - 音轨（lib/audio.js）
+        - 文档 / 脚本 / CI
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 方案不要求把第三方壁纸 / 游戏素材、个人使用授权字体提交进仓库
+          required: true

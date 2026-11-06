@@ -1,0 +1,62 @@
+name: Bug report
+description: 报告启动动画 / 皮肤 / 安装问题
+title: '[bug] '
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认：本仓库是 **公开源码版**（不含第三方壁纸底图与 Anurati 字体，缺失时按降级链运行）。
+        完整版素材的本地恢复见 [ASSETS.md](../ASSETS.md)。提交前请先跑 `npm test`。
+  - type: input
+    id: version
+    attributes:
+      label: 插件版本 / 提交
+      placeholder: 0.2.1 / <git commit>
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: Windows 11 / DSH <版本> / desktop 或 web profile / Node <版本>
+    validations:
+      required: true
+  - type: dropdown
+    id: media
+    attributes:
+      label: 素材状态
+      options:
+        - 公开仓库默认（无第三方底板 / Anurati）
+        - 本地已恢复完整素材
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: 现象
+      description: 实际发生了什么（有 console 日志请贴 `[dsh-vyron]` / `[vyron-engine]` 相关行）
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 安装后完全退出 DSH 重开
+        2. ...
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认
+      options:
+        - label: 我未在 Issue 中附加任何第三方壁纸 / 游戏素材文件
+          required: true

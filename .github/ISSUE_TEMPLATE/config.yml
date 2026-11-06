@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 素材与第三方许可问题
+    url: https://github.com/QIFANAI/dsh-startup-vyron/blob/main/ASSETS.md
+    about: 公开仓库不含第三方壁纸底图与 Anurati 字体；本地恢复方式见 ASSETS.md

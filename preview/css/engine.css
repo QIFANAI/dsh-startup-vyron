@@ -1,0 +1,92 @@
+/* ============================================================================
+ * VYRON · 星海鲸航 — engine 覆盖层样式（owner: cloud-motion）
+ * ----------------------------------------------------------------------------
+ * engine.js 负责 canvas 内的底板/星点/云层/平台/边缘光；本文件只放"画布之上、HUD 之下"
+ * 的纯 CSS 覆盖层（暗角/辉光/扫描/颗粒增强）。
+ *
+ * 重要边界：
+ *   - preview/index.html 的 `.vy-fx` 基础布局（position/size/opacity/transform）由
+ *     splash.css 定义（Lead owner），本文件不重复声明、不覆盖，避免层级打架。
+ *   - 下列类名均为可选增强：宿主 / splash.css 未使用对应节点时零影响。
+ *     engine 自身在 preview 页只依赖 #vyFx canvas 与 engine.js，缺这些节点也能跑。
+ * ========================================================================== */
+
+/* ── 可选：引擎外层容器（供皮肤 glass 档、设置页预览复用） ─────────────────── */
+.vy-engine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(120% 90% at 50% 42%, #0b1a30 0%, #061020 46%, #04070e 100%);
+}
+
+.vy-engine__canvas,
+.vy-engine > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* ── 可选：canvas 上方光晕 / 暗角 / 扫描（比 splash.css 更轻的一层，供复用） ── */
+.vy-engine__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 76% 72% at 50% 46%, rgba(0, 0, 0, 0) 52%, rgba(2, 4, 9, 0.42) 100%);
+  mix-blend-mode: multiply;
+}
+
+.vy-engine__rim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(140% 60% at 50% 92%, rgba(87, 168, 255, 0.10) 0%, rgba(87, 168, 255, 0) 62%);
+  mix-blend-mode: screen;
+  opacity: 0.9;
+}
+
+.vy-engine__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.10;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(4, 7, 14, 0.55) 0 1px,
+    rgba(4, 7, 14, 0) 1px 3px
+  );
+  mix-blend-mode: multiply;
+}
+
+/* ── 引擎状态钩子（main / QA / 皮肤可用，纯样式无逻辑） ────────────────────── */
+.vy-engine.is-fallback {
+  background: linear-gradient(180deg, #04070f 0%, #081226 55%, #0a1424 100%);
+}
+
+/* QA 定格（?t=）兼容：main.js 在 FREEZE 下只画一帧就停 rAF，CSS 过渡不会被推进，
+   若不强制显影，.vy-fx（splash.css owner）会停在 opacity≈0.3 的过渡中间态，
+   截图看到的是 .vy-fallback 而不是真实 4K 底板。此规则只作用于 html.vy-frozen，
+   正常播放（无该 class）完全不受影响。 */
+.vy-frozen .vy-fx {
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+}
+
+.vy-engine.is-reduced * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* ── reduced motion：关闭装饰层循环动画 ───────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .vy-engine__rim,
+  .vy-engine__vignette,
+  .vy-engine__scan {
+    animation: none !important;
+  }
+}

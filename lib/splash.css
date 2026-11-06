@@ -1,0 +1,175 @@
+/* ============================================================================
+ * dsh-startup-vyron — 宿主侧启动层与交接转场
+ * ----------------------------------------------------------------------------
+ * Round2 交接编排（lib/splash.js 驱动；基准 ms，实际 ×k = ms/1200）：
+ *   启动层 iframe 覆盖全屏（启动期黑场锁滚动）
+ *   done 后：
+ *    0    黑场 + 中央 2px 光缝（与 preview 终帧同 y=50% 的光线衔接）
+ *    0–120   iframe 藏到黑幕之后
+ *    120  上下黑幕从中央缝向上下滑开 930ms → 宿主 UI 从一条线里展开
+ *    300  html.vyron-enter（皮肤分区显影 + #root 亮度爬升）
+ *    420  声呐环从中央飞向 [data-composer-card] 矩形 680ms
+ *    700  竖直光带从 50% 扫到顶栏 520ms（启动线 → UI 时间轨）
+ *    1200 清理
+ * 全部过渡按 --vyron-k（ms/1200，profile 档 0.02–1.5）缩放。
+ * ========================================================================== */
+
+html.vyron-lock,
+html.vyron-lock body {
+  overflow: hidden !important;
+}
+
+#dsh-vyron-root.vyron-root {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: #020409;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+#dsh-vyron-root .vyron-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #020409;
+  display: block;
+  opacity: 1;
+  transition: none;
+}
+
+/* ── 交接：iframe 藏到黑幕之后；黑幕从中央缝向上下滑开 ───────────────────── */
+#dsh-vyron-root.vyron-handoff {
+  /* 容器必须透明：黑场由上下两块 vyron-bar 提供，UI 才可能从缝里露出来 */
+  background: transparent;
+  pointer-events: none;
+  transition: background calc(120ms * var(--vyron-k, 1)) linear;
+}
+#dsh-vyron-root.vyron-handoff .vyron-frame {
+  opacity: 0;
+  transition: opacity calc(120ms * var(--vyron-k, 1)) linear;
+}
+
+#dsh-vyron-root .vyron-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  z-index: 3;
+  pointer-events: none;
+  background: #020409;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+#dsh-vyron-root .vyron-bar--top {
+  top: 0;
+  transform-origin: 50% 0%;
+  background: linear-gradient(to bottom,
+    #020409 0%, #020409 93%,
+    rgba(87, 168, 255, .07) 98%, rgba(87, 168, 255, .22) 100%);
+}
+#dsh-vyron-root .vyron-bar--bottom {
+  bottom: 0;
+  transform-origin: 50% 100%;
+  background: linear-gradient(to top,
+    #020409 0%, #020409 93%,
+    rgba(87, 168, 255, .07) 98%, rgba(87, 168, 255, .22) 100%);
+}
+
+/* 中央光缝：与 preview 终帧的光线同位置同亮度；黑幕打开后淡出 */
+#dsh-vyron-root .vyron-seam {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(87, 168, 255, 0) 0%,
+    rgba(238, 242, 246, 0.55) 12%,
+    #ffffff 50%,
+    rgba(238, 242, 246, 0.55) 88%,
+    rgba(87, 168, 255, 0) 100%);
+  box-shadow: 0 0 26px rgba(87, 168, 255, 0.9), 0 0 110px rgba(87, 168, 255, 0.45);
+  opacity: 0;
+  transform: scaleX(.06);
+  transform-origin: 50% 50%;
+}
+#dsh-vyron-root .vyron-seam.is-on {
+  animation: vyron-seam-in calc(200ms * var(--vyron-k, 1)) cubic-bezier(.2,.8,.3,1) forwards;
+}
+#dsh-vyron-root .vyron-seam.is-open {
+  transform: scaleX(1);
+  transition: transform calc(260ms * var(--vyron-k, 1)) cubic-bezier(.2,.8,.3,1);
+}
+#dsh-vyron-root .vyron-seam.is-out {
+  opacity: 0 !important;
+  transition: opacity calc(240ms * var(--vyron-k, 1)) ease calc(120ms * var(--vyron-k, 1));
+}
+@keyframes vyron-seam-in {
+  0% { opacity: 0; transform: scaleX(.06); }
+  38% { opacity: 1; transform: scaleX(.72); }
+  100% { opacity: 0.96; transform: scaleX(1); }
+}
+
+/* 声呐环：从中央飞到输入框卡片（JS 用 WAAPI 编排 left/top/width/height） */
+#dsh-vyron-root .vyron-ring {
+  position: absolute;
+  z-index: 6;
+  left: 0;
+  top: 0;
+  width: 140px;
+  height: 140px;
+  border-radius: 999px;
+  pointer-events: none;
+  border: 1.5px solid rgba(238, 242, 246, 0.72);
+  box-shadow:
+    0 0 18px rgba(87, 168, 255, 0.85),
+    0 0 62px rgba(87, 168, 255, 0.42),
+    inset 0 0 22px rgba(126, 240, 212, 0.28);
+  opacity: 0;
+  will-change: left, top, width, height, opacity;
+}
+
+/* 竖直光带：从画面中线扫到顶栏，引导视线落到 UI 的时间轨 */
+#dsh-vyron-root .vyron-scan {
+  position: absolute;
+  z-index: 4;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 120px;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(to bottom,
+    rgba(238, 242, 246, 0) 0%,
+    rgba(238, 242, 246, .07) 34%,
+    rgba(126, 240, 212, .16) 50%,
+    rgba(87, 168, 255, .12) 62%,
+    rgba(238, 242, 246, 0) 100%);
+  mix-blend-mode: screen;
+  will-change: top, opacity;
+}
+
+/* ── 宿主 UI 通电显影：交接 300ms 后加在 <html> 上 ─────────────────────────
+ *    只动 filter（亮度/饱和/微模糊），不改布局；分区显影由 lib/skin.css 的
+ *    html.vyron-enter 规则补充（侧栏/顶栏先、输入框次、内容最后）。 */
+html.vyron-enter #root {
+  animation: vyron-ui-power-on calc(900ms * var(--vyron-k, 1)) cubic-bezier(.2,.7,.2,1) both;
+}
+@keyframes vyron-ui-power-on {
+  0% { filter: brightness(.70) saturate(.78) blur(2.2px); }
+  46% { filter: brightness(.96) saturate(.94) blur(.6px); }
+  100% { filter: none; }
+}
+
+/* 无 backdrop 支持 / 减弱动态：缩短一次性动效 */
+@media (prefers-reduced-motion: reduce) {
+  html.vyron-enter #root { animation-duration: 260ms; }
+  #dsh-vyron-root .vyron-seam.is-on { animation-duration: 180ms; }
+  #dsh-vyron-root .vyron-scan { display: none; }
+}

@@ -1,0 +1,1191 @@
+/* ============================================================================
+ * VYRON 星海鲸航 — 终端 HUD 样式（素材 A：CMD\LN V1.03 的终端语言）
+ * ----------------------------------------------------------------------------
+ * 权威源：docs/design-spec.md §2.1 / §3 / §7。
+ * 作用域：全部节点类名前缀 `vy-hud`；本文件只写 HUD 层，不改 stage/舞台布局。
+ * 字体：全部本地打包，路径相对 preview/ 解析（../../lib/assets/fonts/*）。
+ * 灰阶：--v-ink-1/2/3 沿用素材 A 原值 #e8e9ea / #a3a6aa / #85888c。
+ * 动画：均由 hud.js 的 update(t) 驱动（无 CSS 循环动画），?t= 定格可复现。
+ * Round2：§10 P1 中央 ORBIT CORE（素材 A 的 mg_radar 版式）、§11 底部控制带
+ *         （AUDIO · L/R · 128 BINS + 坐标 + SYNC）、§12 两侧竖向遥测流、
+ *         §13 P4 环回归 —— 见 docs/material-a.md §7。
+ * ========================================================================== */
+
+/* ── 0. 字体（SIL OFL / 素材 A 随附） ──────────────────────────────────── */
+@font-face {
+  font-family: "Oxanium"; font-weight: 200; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/oxanium-200.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Share Tech Mono"; font-weight: 400; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/share-tech-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono"; font-weight: 400; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/jetbrains-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono"; font-weight: 500; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/jetbrains-mono-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans JP"; font-weight: 500; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/noto-sans-jp-500.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Noto Sans JP"; font-weight: 900; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/noto-sans-jp-900.woff2") format("woff2");
+}
+/* 终帧日期/时间：Quicksand-Bold（Anurati 风格的宽字距；见 material-a.md 取舍表） */
+@font-face {
+  font-family: "Quicksand"; font-weight: 700; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/Quicksand-Bold.otf") format("opentype");
+}
+/* Anurati：只用在 HUD 的微型字标（P4 的 meta 小字），不抢主字标 */
+@font-face {
+  font-family: "Anurati"; font-weight: 400; font-display: block; font-style: normal;
+  src: url("../../lib/assets/fonts/Anurati-Regular.otf") format("opentype");
+}
+
+/* ── 1. token（素材 A 灰阶 + 本插件舞台环境） ───────────────────────────── */
+.vy-hud,
+.vy-hud-lockup {
+  --vyh-ink-1: #e8e9ea;
+  --vyh-ink-2: #a3a6aa;
+  --vyh-ink-3: #85888c;
+  --vyh-cream: #f1e6d2;
+  --vyh-line: rgba(232, 233, 234, 0.22);
+  --vyh-line-soft: rgba(232, 233, 234, 0.11);
+  --vyh-line-strong: rgba(232, 233, 234, 0.42);
+  --vyh-panel: rgba(5, 10, 22, 0.34);
+  --vyh-panel-2: rgba(5, 10, 22, 0.5);
+  --vyh-glow: rgba(232, 233, 234, 0.42);
+
+  --vyh-mono: "JetBrains Mono", "VY JetBrains Mono", "Consolas", "Courier New", monospace;
+  --vyh-label: "Share Tech Mono", "VY Share Tech Mono", "Consolas", monospace;
+  --vyh-num: "Oxanium", "VY Oxanium", "DeepSeek Sans", sans-serif;
+  --vyh-jp: "Noto Sans JP", "VY Noto JP", "Yu Gothic UI", "Meiryo", sans-serif;
+  --vyh-date: "Quicksand", "VY Quicksand", "Anurati", "VY Anurati", sans-serif;
+
+  /* 构图：HUD 只占四角与边缘，中央 60% 留给底板与大白鱼 */
+  --vyh-gx: clamp(20px, 2.4vw, 44px);
+  --vyh-gy-top: clamp(54px, 7.4vh, 80px);
+  --vyh-gy-bot: clamp(52px, 6.8vh, 78px);
+  --vyh-w-top: clamp(258px, 18.6vw, 316px);
+  --vyh-w-bot: clamp(284px, 20.4vw, 344px);
+}
+
+/* ── 2. 根层（#vyHudRoot 的子层；不拦截指针，不参与布局） ───────────────── */
+.vy-hud {
+  position: absolute;
+  inset: 0;
+  z-index: 5; /* 舞台 z 序：fx1 / 舷窗 3–4 / HUD 5 / 角标顶底栏 8 / 锁版 11 */
+  pointer-events: none;
+  overflow: hidden;
+  color: var(--vyh-ink-1);
+  font: 10px/1.2 var(--vyh-mono);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+  user-select: none;
+  isolation: auto;
+}
+
+/* 40px 网格（P1 点亮；P2 收起） */
+.vy-hud-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-image:
+    linear-gradient(rgba(232, 233, 234, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 233, 234, 0.10) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px;
+  background-position: center center;
+  -webkit-mask-image: radial-gradient(ellipse 82% 78% at 50% 48%, #000 34%, rgba(0, 0, 0, 0.45) 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 82% 78% at 50% 48%, #000 34%, rgba(0, 0, 0, 0.45) 72%, transparent 100%);
+}
+
+/* ── 3. 边缘框：四窗外滑后展开的整屏细框 + P3 掠过扫描条 ────────────────── */
+.vy-hud-edge {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.vy-hud-edge-rail {
+  position: absolute;
+  background: linear-gradient(90deg, rgba(232, 233, 234, 0.5), rgba(232, 233, 234, 0.2));
+  box-shadow: 0 0 10px rgba(232, 233, 234, 0.12);
+  will-change: transform;
+}
+.vy-hud-edge-rail-t {
+  left: 0; right: 0; top: clamp(9px, 1.3vh, 15px); height: 1px;
+  transform-origin: left center; transform: scaleX(var(--vy-edge, 0));
+}
+.vy-hud-edge-rail-b {
+  left: 0; right: 0; bottom: clamp(9px, 1.3vh, 15px); height: 1px;
+  transform-origin: right center; transform: scaleX(var(--vy-edge, 0));
+  background: linear-gradient(270deg, rgba(232, 233, 234, 0.5), rgba(232, 233, 234, 0.2));
+}
+.vy-hud-edge-rail-l {
+  top: 0; bottom: 0; left: clamp(9px, 1.3vw, 16px); width: 1px;
+  transform-origin: center top; transform: scaleY(var(--vy-edge, 0));
+  background: linear-gradient(180deg, rgba(232, 233, 234, 0.5), rgba(232, 233, 234, 0.2));
+}
+.vy-hud-edge-rail-r {
+  top: 0; bottom: 0; right: clamp(9px, 1.3vw, 16px); width: 1px;
+  transform-origin: center bottom; transform: scaleY(var(--vy-edge, 0));
+  background: linear-gradient(0deg, rgba(232, 233, 234, 0.5), rgba(232, 233, 234, 0.2));
+}
+.vy-hud-edge-tick {
+  position: absolute;
+  width: 1px; height: 6px;
+  background: rgba(232, 233, 234, 0.28);
+}
+.vy-hud-edge-tick-l { left: clamp(9px, 1.3vw, 16px); }
+.vy-hud-edge-tick-r { right: clamp(9px, 1.3vw, 16px); }
+
+.vy-hud-scan {
+  position: absolute;
+  left: 0;
+  top: clamp(9px, 1.3vh, 15px);
+  width: 22vw;
+  height: 1px;
+  opacity: 0;
+  background: linear-gradient(90deg, rgba(232, 233, 234, 0), rgba(232, 233, 234, 0.92) 46%, rgba(232, 233, 234, 0) 100%);
+  box-shadow: 0 0 12px rgba(232, 233, 234, 0.35);
+  will-change: transform, opacity;
+}
+
+/* ── 4. 日轨条（顶部中央；当前时间刻度） ────────────────────────────────── */
+.vy-hud-daybar {
+  position: absolute;
+  top: clamp(24px, 3.4vh, 38px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(54vw, 760px);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  font: 9px/1 var(--vyh-label);
+  letter-spacing: 0.16em;
+  color: var(--vyh-ink-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vy-hud-daybar-label { color: var(--vyh-ink-2); }
+.vy-hud-daybar-track {
+  position: relative;
+  flex: 1 1 auto;
+  height: 10px;
+  border: 1px solid var(--vyh-line-soft);
+  background: rgba(5, 10, 22, 0.22);
+}
+.vy-hud-daybar-ticks { position: absolute; inset: 0; }
+.vy-hud-daybar-tick {
+  position: absolute;
+  top: -3px;
+  width: 1px;
+  height: 4px;
+  background: rgba(232, 233, 234, 0.26);
+  transform: translateX(-0.5px);
+}
+.vy-hud-daybar-tick.is-major { top: -5px; height: 7px; background: rgba(232, 233, 234, 0.55); }
+.vy-hud-daybar-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: calc(var(--vy-day, 0) * 100%);
+  background: rgba(232, 233, 234, 0.14);
+}
+.vy-hud-daybar-caret {
+  position: absolute;
+  top: -4px; bottom: -4px;
+  left: calc(var(--vy-day, 0) * 100%);
+  width: 1px;
+  background: var(--vyh-ink-1);
+  box-shadow: 0 0 7px rgba(232, 233, 234, 0.6);
+}
+.vy-hud-daybar-pct { font-family: var(--vyh-num); font-size: 10px; letter-spacing: 0.08em; color: var(--vyh-ink-2); }
+.vy-hud-daybar-time { font-family: var(--vyh-num); font-size: 11px; letter-spacing: 0.1em; color: var(--vyh-ink-1); }
+
+/* ── 5. 四窗通用 ────────────────────────────────────────────────────────── */
+.vy-hud-win {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  border: 1px solid var(--vyh-line-soft);
+  background: linear-gradient(180deg, var(--vyh-panel-2), var(--vyh-panel));
+  box-shadow: 0 0 28px rgba(2, 4, 9, 0.42), inset 0 0 0 1px rgba(2, 4, 9, 0.28);
+  will-change: transform, opacity;
+  contain: layout paint;
+}
+/* 素材 A 的角括号：左上 + 右下 */
+.vy-hud-win::before,
+.vy-hud-win::after {
+  content: "";
+  position: absolute;
+  width: 9px; height: 9px;
+  opacity: 0.8;
+  pointer-events: none;
+}
+.vy-hud-win::before {
+  left: -1px; top: -1px;
+  border-left: 1px solid var(--vyh-ink-1);
+  border-top: 1px solid var(--vyh-ink-1);
+}
+.vy-hud-win::after {
+  right: -1px; bottom: -1px;
+  border-right: 1px solid var(--vyh-ink-1);
+  border-bottom: 1px solid var(--vyh-ink-1);
+}
+.vy-hud-win-tl { left: var(--vyh-gx); top: var(--vyh-gy-top); width: var(--vyh-w-top); height: clamp(214px, 30vh, 290px); }
+.vy-hud-win-tr { right: var(--vyh-gx); top: var(--vyh-gy-top); width: var(--vyh-w-top); height: clamp(198px, 27.2vh, 266px); }
+.vy-hud-win-tr .vy-hud-win-body { flex-direction: column; }
+.vy-hud-win-bl { left: var(--vyh-gx); bottom: var(--vyh-gy-bot); width: var(--vyh-w-bot); height: clamp(158px, 21.6vh, 206px); }
+.vy-hud-win-br { right: var(--vyh-gx); bottom: var(--vyh-gy-bot); width: var(--vyh-w-bot); height: clamp(150px, 20.4vh, 196px); }
+
+.vy-hud-win-head {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 24px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--vyh-line-soft);
+  font: 9.5px/1 var(--vyh-label);
+  letter-spacing: 0.16em;
+  color: var(--vyh-ink-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vy-hud-win-no {
+  font-family: var(--vyh-num);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--vyh-ink-1);
+}
+.vy-hud-win-title { overflow: hidden; text-overflow: ellipsis; }
+.vy-hud-grow { flex: 1 1 auto; }
+.vy-hud-led {
+  flex: 0 0 auto;
+  width: 5px; height: 5px;
+  background: var(--vyh-ink-1);
+  box-shadow: 0 0 6px rgba(232, 233, 234, 0.35);
+  opacity: 0.75;
+}
+.vy-hud-win-btns {
+  flex: 0 0 auto;
+  width: 14px; height: 8px;
+  border-top: 1px solid var(--vyh-line);
+  border-bottom: 1px solid var(--vyh-line);
+  position: relative;
+}
+.vy-hud-win-btns::after {
+  content: "";
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 1px; height: 8px;
+  background: var(--vyh-line);
+  transform: translate(-50%, -50%);
+}
+.vy-hud-win-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+.vy-hud-win-foot {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 10px;
+  border-top: 1px solid var(--vyh-line-soft);
+  font: 8.5px/1 var(--vyh-label);
+  letter-spacing: 0.12em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+  white-space: nowrap;
+  justify-content: space-between;
+}
+.vy-hud-foot-l { flex: 0 0 auto; }
+.vy-hud-foot-m { flex: 1 1 auto; text-align: center; }
+.vy-hud-foot-r { flex: 0 0 auto; color: var(--vyh-ink-2); }
+
+/* ── 6. 01 ACTIVITY.LOG：终端开机日志（打字机 + 光标 + 行号） ───────────── */
+.vy-hud-log {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  padding: 6px 10px 5px;
+  overflow: hidden;
+}
+.vy-hud-log-line {
+  display: grid;
+  grid-template-columns: 23px 43px 25px minmax(0, 1fr);
+  column-gap: 5px;
+  align-items: baseline;
+  font: 9.5px/13.5px var(--vyh-mono);
+  white-space: nowrap;
+  opacity: 0;
+}
+.vy-hud-log-line.is-on { opacity: 1; }
+.vy-hud-log-line:not(.is-on) { display: none; }
+.vy-hud-log-n { color: rgba(133, 136, 140, 0.75); font-size: 8.5px; letter-spacing: 0.02em; }
+.vy-hud-log-t { color: rgba(133, 136, 140, 0.9); font-size: 8.5px; letter-spacing: 0.01em; }
+.vy-hud-log-c { color: var(--vyh-ink-2); letter-spacing: 0.04em; }
+.vy-hud-log-o {
+  min-width: 0;
+  color: var(--vyh-ink-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vy-hud-log-txt { white-space: pre; }
+.vy-hud-cur {
+  display: inline-block;
+  width: 5px;
+  height: 9px;
+  margin-left: 1px;
+  vertical-align: -1px;
+  background: var(--vyh-ink-1);
+  opacity: 0;
+}
+
+/* ── 7. 02 TELEMETRY：雷达扫描环 + 月相 ────────────────────────────────── */
+.vy-hud-tel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px 2px;
+  align-items: flex-start;
+  overflow: hidden;
+}
+.vy-hud-radar {
+  flex: 0 0 auto;
+  width: clamp(84px, 9.6vw, 118px);
+  position: relative;
+}
+.vy-hud-radar svg { display: block; width: 100%; height: auto; }
+.vy-hud-radar-ring { fill: none; stroke: rgba(232, 233, 234, 0.18); stroke-width: 0.8; }
+.vy-hud-radar-ring-mid { stroke-dasharray: 2 4; stroke: rgba(232, 233, 234, 0.14); }
+.vy-hud-radar-ring-in { stroke: rgba(232, 233, 234, 0.1); }
+.vy-hud-radar-cross { fill: none; stroke: rgba(232, 233, 234, 0.09); stroke-width: 0.6; }
+.vy-hud-radar-tick { stroke: rgba(232, 233, 234, 0.26); stroke-width: 0.7; }
+.vy-hud-radar-tick.is-major { stroke: rgba(232, 233, 234, 0.58); stroke-width: 1; }
+.vy-hud-radar-card {
+  font-family: var(--vyh-label);
+  font-size: 6px;
+  letter-spacing: 0.08em;
+  fill: rgba(232, 233, 234, 0.34);
+}
+.vy-hud-radar-contact { fill: var(--vyh-ink-1); opacity: 0.3; }
+.vy-hud-radar-sweep {
+  transform: rotate(var(--vy-radar-a, 0deg));
+  transform-box: view-box;
+  transform-origin: 60px 60px;
+}
+.vy-hud-radar-sweep-wedge { fill: rgba(232, 233, 234, 0.085); }
+.vy-hud-radar-sweep-line { stroke: rgba(232, 233, 234, 0.72); stroke-width: 0.8; }
+.vy-hud-radar-core { fill: var(--vyh-ink-1); opacity: 0.8; }
+.vy-hud-tel-read {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font: 9px/1.1 var(--vyh-label);
+  letter-spacing: 0.1em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+}
+.vy-hud-tel-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.vy-hud-tel-k { color: var(--vyh-ink-3); }
+.vy-hud-tel-v {
+  font-family: var(--vyh-num);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--vyh-ink-1);
+}
+.vy-hud-tel-rule { height: 1px; margin: 2px 0; background: var(--vyh-line-soft); }
+.vy-hud-tel-note {
+  margin-top: 2px;
+  font-size: 8px;
+  line-height: 1.35;
+  white-space: nowrap;
+  letter-spacing: 0.08em;
+  color: rgba(133, 136, 140, 0.9);
+}
+.vy-hud-moon {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 7px;
+  border-top: 1px solid var(--vyh-line-soft);
+}
+.vy-hud-moon svg { display: block; width: 40px; height: 40px; flex: 0 0 auto; }
+.vy-hud-moon-orbit { fill: none; stroke: rgba(232, 233, 234, 0.16); stroke-dasharray: 2 3; }
+.vy-hud-moon-mark { fill: var(--vyh-ink-2); }
+.vy-hud-moon-disc { fill: none; stroke: rgba(232, 233, 234, 0.45); stroke-width: 0.9; }
+.vy-hud-moon-lit { fill: rgba(232, 233, 234, 0.82); }
+.vy-hud-moon-axis { fill: none; stroke: rgba(232, 233, 234, 0.12); stroke-width: 0.6; }
+.vy-hud-moon-read {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font: 8.5px/12px var(--vyh-label);
+  letter-spacing: 0.08em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+}
+.vy-hud-moon-name { color: var(--vyh-ink-1); font-size: 9px; letter-spacing: 0.1em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vy-hud-moon-row { white-space: nowrap; }
+
+/* ── 8. 03 MICROGRAPHICS：schema / dither / kanji 三套微图形 ─────────────── */
+.vy-hud-mg {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 6px;
+  padding: 7px 8px;
+}
+.vy-hud-plate {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--vyh-line-soft);
+  background: rgba(5, 10, 22, 0.26);
+  overflow: hidden;
+}
+.vy-hud-plate-canvas {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+.vy-hud-plate-cap {
+  flex: 0 0 auto;
+  padding: 3px 4px 2px;
+  border-top: 1px solid var(--vyh-line-soft);
+  font: 7.5px/1 var(--vyh-label);
+  letter-spacing: 0.12em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vy-hud-kanji {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+}
+.vy-hud-kanji-col { display: flex; flex-direction: column; gap: 1px; }
+.vy-hud-kanji-ch {
+  font-family: var(--vyh-jp);
+  font-weight: 500;
+  font-size: clamp(12px, 1.5vw, 17px);
+  line-height: 1;
+  color: var(--vyh-ink-1);
+}
+.vy-hud-kanji-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font: 7.5px/1.2 var(--vyh-label);
+  letter-spacing: 0.1em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+}
+.vy-hud-kanji-label { font-family: var(--vyh-jp); font-size: 9px; color: var(--vyh-ink-2); letter-spacing: 0.02em; }
+.vy-hud-kanji-seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 21px; height: 21px;
+  margin-top: 2px;
+  border: 1px solid rgba(232, 233, 234, 0.42);
+  border-radius: 50%;
+  font-family: var(--vyh-jp);
+  font-weight: 900;
+  font-size: 7px;
+  letter-spacing: 0;
+  color: var(--vyh-ink-1);
+}
+.vy-hud-plate-scan {
+  position: absolute;
+  left: 0; right: 0; top: 0;
+  height: 1px;
+  opacity: 0;
+  background: rgba(232, 233, 234, 0.55);
+  box-shadow: 0 0 8px rgba(232, 233, 234, 0.35);
+  will-change: transform, opacity;
+}
+
+/* ── 9. 04 SESSION.LEDGER：运行时长 + 启动时刻 + 7 日小时格 ─────────────── */
+.vy-hud-ledger {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 10px 4px;
+  overflow: hidden;
+}
+.vy-hud-ledger-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font: 9px/1 var(--vyh-label);
+  letter-spacing: 0.14em;
+  color: var(--vyh-ink-2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vy-hud-ledger-head-r {
+  font-family: var(--vyh-num);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--vyh-ink-1);
+}
+.vy-hud-ledger-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+.vy-hud-ledger-row {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  column-gap: 5px;
+  align-items: center;
+}
+.vy-hud-ledger-day {
+  font: 7.5px/1 var(--vyh-label);
+  letter-spacing: 0.06em;
+  color: var(--vyh-ink-3);
+}
+.vy-hud-ledger-cells {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  gap: 2px;
+}
+.vy-hud-ledger-cell {
+  height: 6px;
+  background: rgba(232, 233, 234, 0.1);
+  border-top: 1px solid rgba(232, 233, 234, 0.12);
+}
+.vy-hud-ledger-cell.is-on { background: rgba(232, 233, 234, 0.4); }
+.vy-hud-ledger-cell.is-now { background: var(--vyh-ink-1); box-shadow: 0 0 5px rgba(232, 233, 234, 0.55); }
+.vy-hud-ledger-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font: 8px/1 var(--vyh-label);
+  letter-spacing: 0.1em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vy-hud-ledger-boot { color: var(--vyh-ink-2); }
+
+/* ══ 10. P1 中央 ORBIT CORE（素材 A 中央雷达/轨道图搬到画面正中） ═════════
+   环心 (50%,47%) 与舷窗 iris 同心：P2 外环放大 1.35× 淡出时视觉上变成 iris 圆。
+   鱼标核心在环心上方约 3%（≈50%/44%），与 Lead 的 P0 信号层鱼标位置衔接。
+   尺寸：外环直径 = clamp(360px, 44vmin, 520px)；整个 SVG 容器宽 = 2×外环直径。 */
+.vy-hud-core {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: clamp(720px, 88vmin, 1040px);
+  height: clamp(720px, 88vmin, 1040px);
+  margin: 0;
+  transform: translate3d(-50%, -50%, 0);
+  transform-origin: 50% 50%;
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* 中央微图形细网（20px，径向淡出成圆形准星区；把中央"填空"成仪表盘） */
+.vy-hud-core-mesh {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 70%;
+  height: 70%;
+  transform: translate(-50%, -50%);
+  background-image:
+    linear-gradient(rgba(232, 233, 234, 0.075) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232, 233, 234, 0.075) 1px, transparent 1px);
+  background-size: 20px 20px, 20px 20px;
+  background-position: center center;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, #000 26%, rgba(0, 0, 0, 0.62) 62%, transparent 100%);
+  mask-image: radial-gradient(circle at 50% 50%, #000 26%, rgba(0, 0, 0, 0.62) 62%, transparent 100%);
+  pointer-events: none;
+}
+.vy-hud-core-label.is-bearing {
+  font-family: var(--vyh-num);
+  font-size: clamp(6.5px, 0.92vmin, 9px);
+  letter-spacing: 0.06em;
+  color: rgba(163, 166, 170, 0.5);
+}
+.vy-hud-core-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  color: var(--vyh-ink-1);
+}
+/* 三层同心环 + 十字准线 + 罗盘刻度 */
+.vy-hud-core-ring { fill: none; stroke: rgba(232, 233, 234, 0.22); stroke-width: 1; }
+.vy-hud-core-ring-out {
+  stroke: rgba(232, 233, 234, 0.50);
+  stroke-width: 1.2;
+  stroke-opacity: calc(0.80 + var(--vy-charge, 0) * 0.20);
+}
+.vy-hud-core-ring-mid { stroke: rgba(232, 233, 234, 0.24); }
+.vy-hud-core-ring-in { stroke: rgba(232, 233, 234, 0.18); }
+.vy-hud-core-ring-dot {
+  stroke: rgba(232, 233, 234, 0.16);
+  stroke-dasharray: 1 5;
+  stroke-width: 0.9;
+}
+.vy-hud-core-ring-mid2 {
+  stroke: rgba(232, 233, 234, 0.14);
+  stroke-dasharray: 2 6;
+}
+.vy-hud-core-range { fill: none; }
+.vy-hud-core-rangetick { fill: none; stroke: rgba(232, 233, 234, 0.34); stroke-width: 1; }
+.vy-hud-core-spokes { stroke: rgba(232, 233, 234, 0.10); stroke-width: 0.8; }
+.vy-hud-core-spoke { fill: none; stroke: rgba(232, 233, 234, 0.10); stroke-width: 0.8; }
+.vy-hud-core-orbit {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.16);
+  stroke-width: 1;
+  stroke-dasharray: 3 8;
+}
+.vy-hud-core-moon { fill: rgba(232, 233, 234, 0.85); }
+.vy-hud-core-corners { fill: none; }
+.vy-hud-core-corner { fill: none; stroke: rgba(232, 233, 234, 0.45); stroke-width: 1; }
+.vy-hud-core-dash {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.22);
+  stroke-width: 1;
+  transform-box: view-box;
+  transform-origin: 400px 400px;
+  will-change: transform;
+}
+.vy-hud-core-dash-out { stroke-dasharray: 2 10; stroke: rgba(232, 233, 234, 0.30); }
+.vy-hud-core-dash-in { stroke-dasharray: 26 14; stroke: rgba(232, 233, 234, 0.16); }
+.vy-hud-core-cross { fill: none; stroke: rgba(232, 233, 234, 0.13); stroke-width: 1; }
+.vy-hud-core-cross-in { stroke: rgba(232, 233, 234, 0.42); }
+.vy-hud-core-tick { stroke: rgba(232, 233, 234, 0.26); stroke-width: 0.9; }
+.vy-hud-core-tick.is-major { stroke: rgba(232, 233, 234, 0.58); stroke-width: 1.1; }
+.vy-hud-core-sig-arc {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.42);
+  stroke-width: 4;
+  stroke-dasharray: 3 3;
+}
+.vy-hud-core-sol { fill: rgba(232, 233, 234, 0.85); }
+.vy-hud-core-lead { fill: none; stroke: rgba(232, 233, 234, 0.24); stroke-width: 1; }
+.vy-hud-core-node { fill: rgba(5, 10, 22, 0.85); stroke: rgba(232, 233, 234, 0.55); stroke-width: 1; }
+.vy-hud-core-node-fill { fill: rgba(232, 233, 234, 0.82); }
+.vy-hud-core-sweep {
+  transform-box: view-box;
+  transform-origin: 400px 400px;
+  will-change: transform;
+}
+/* 主扇面 fill 走 SVG 径向渐变（inline fill="url(#vyCoreBeam)"），CSS 不覆盖 */
+.vy-hud-core-sweep-tail { fill: rgba(232, 233, 234, 0.035); }
+.vy-hud-core-halo { pointer-events: none; }
+.vy-hud-core-sweep-line { stroke: rgba(232, 233, 234, 0.58); stroke-width: 1; }
+.vy-hud-core-sweep-arc {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.55);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.vy-hud-core-contact { fill: rgba(232, 233, 234, 0.9); opacity: 0.3; }
+.vy-hud-core-dot { fill: var(--vyh-ink-1); opacity: 0.8; }
+/* 方位标注（HTML 叠层，字体语言照素材 A 的 mg_svg .t10 / Share Tech Mono） */
+.vy-hud-core-labels { position: absolute; inset: 0; }
+.vy-hud-core-label {
+  position: absolute;
+  font: 400 clamp(7px, 1.12vmin, 10.5px)/1.15 var(--vyh-label);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(163, 166, 170, 0.86);
+  white-space: nowrap;
+  text-shadow: 0 0 8px rgba(4, 7, 14, 0.85), 0 1px 2px rgba(2, 4, 9, 0.9);
+}
+.vy-hud-core-label.is-mid { transform: translate(-50%, -50%); }
+.vy-hud-core-label.is-start { transform: translateY(-50%); }
+.vy-hud-core-label.is-end { transform: translate(-100%, -50%); }
+.vy-hud-core-label.is-compass {
+  font-family: var(--vyh-num);
+  font-size: clamp(8px, 1.15vmin, 11px);
+  letter-spacing: 0.08em;
+  color: rgba(232, 233, 234, 0.62);
+}
+/* 核心中央：官方鱼标 + conic 进度环 + DEEPSEEK HARNESS 字标 + BOOT CORE */
+.vy-hud-core-center {
+  position: absolute;
+  left: 50%;
+  top: 46.2%;
+  transform: translate3d(-50%, -50%, 0);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(3px, 0.5vmin, 6px);
+  opacity: 0;
+  will-change: opacity;
+}
+/* P2 舷窗打开后地球亮部会顶到鱼标/字标后面：加一层极淡的暗色"仪表镜片"，
+   只在充能/退出窗口（--vy-veil 由 hud.js 驱动）出现，保住白字可读性。 */
+.vy-hud-core-center::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  width: 172%;
+  height: 208%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center,
+    rgba(4, 7, 14, 0.66) 0%, rgba(4, 7, 14, 0.44) 38%,
+    rgba(4, 7, 14, 0.15) 64%, rgba(4, 7, 14, 0) 80%);
+  opacity: var(--vy-veil, 0);
+  z-index: -1;
+  pointer-events: none;
+}
+.vy-hud-core-markwrap {
+  position: relative;
+  width: clamp(72px, 9.8vmin, 104px);
+  height: clamp(72px, 9.8vmin, 104px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* conic 进度环：--vy-sync 由 hud.js 的 renderSync 驱动 0→1 */
+.vy-hud-core-dial {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 138%;
+  height: 138%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background:
+    conic-gradient(from -90deg,
+      rgba(244, 247, 250, 0.95) calc(var(--vy-sync, 0) * 1turn),
+      rgba(232, 233, 234, 0.12) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.6px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.6px));
+  filter: drop-shadow(0 0 calc(4px + var(--vy-glow, 0.4) * 10px) rgba(126, 240, 212, 0.45));
+}
+.vy-hud-core-dial-ticks {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160%;
+  height: 160%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 1px dashed rgba(232, 233, 234, 0.20);
+}
+.vy-hud-core-fish {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: #f5f8fb;
+  filter:
+    brightness(calc(1 + var(--vy-charge, 0) * 0.85))
+    drop-shadow(0 0 calc(6px + var(--vy-glow, 0.4) * 16px) rgba(126, 240, 212, 0.55))
+    drop-shadow(0 0 calc(2px + var(--vy-glow, 0.4) * 6px) rgba(87, 168, 255, 0.55));
+}
+.vy-hud-core-wordmark {
+  font: 400 clamp(11px, 2.0vmin, 20px)/1 var(--vyh-label);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  color: rgba(248, 250, 252, 0.97);
+  white-space: nowrap;
+  text-shadow:
+    0 0 18px rgba(87, 168, 255, 0.42),
+    0 0 4px rgba(255, 255, 255, 0.30);
+}
+.vy-hud-core-caption {
+  font: 400 clamp(7px, 1.02vmin, 10px)/1 var(--vyh-label);
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  color: rgba(163, 166, 170, 0.82);
+  white-space: nowrap;
+}
+
+/* ══ 11. 底部控制带：AUDIO · L/R · 128 BINS 频谱 + X/Y 坐标 + SYNC ═══════ */
+.vy-hud-band {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--vyh-gy-bot) + 2px);
+  transform: translateX(-50%);
+  width: min(46vw, 820px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3px, 0.5vmin, 7px);
+  opacity: 0;
+  pointer-events: none;
+  font: 400 9px/1 var(--vyh-label);
+  letter-spacing: 0.14em;
+  color: var(--vyh-ink-2);
+  text-transform: uppercase;
+}
+.vy-hud-band-audio { display: flex; flex-direction: column; gap: 3px; }
+.vy-hud-band-audio-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  white-space: nowrap;
+}
+.vy-hud-band-audio-label { color: var(--vyh-ink-3); letter-spacing: 0.18em; }
+.vy-hud-band-peak {
+  font-family: var(--vyh-num);
+  letter-spacing: 0.08em;
+  color: var(--vyh-ink-2);
+}
+.vy-hud-band-spectrum { display: flex; flex-direction: column; gap: 2px; }
+.vy-hud-band-row { display: flex; align-items: center; gap: 6px; height: 7px; }
+.vy-hud-band-ch {
+  flex: 0 0 auto;
+  width: 7px;
+  font-style: normal;
+  font-size: 7px;
+  line-height: 1;
+  color: rgba(133, 136, 140, 0.9);
+}
+.vy-hud-band-bars {
+  flex: 1 1 auto;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+}
+.vy-hud-band-row.is-r .vy-hud-band-bars { align-items: flex-start; }
+.vy-hud-band-bar {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  background: linear-gradient(180deg, rgba(232, 233, 234, 0.88), rgba(232, 233, 234, 0.24));
+  transform: scaleY(var(--vy-bar, 0.18));
+  transform-origin: center bottom;
+  will-change: transform;
+}
+.vy-hud-band-row.is-r .vy-hud-band-bar {
+  transform-origin: center top;
+  background: linear-gradient(0deg, rgba(232, 233, 234, 0.88), rgba(232, 233, 234, 0.24));
+}
+.vy-hud-band-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  white-space: nowrap;
+}
+.vy-hud-band-coords {
+  font-family: var(--vyh-num);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: rgba(163, 166, 170, 0.9);
+}
+.vy-hud-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 9px/1 var(--vyh-label);
+  letter-spacing: 0.2em;
+  color: var(--vyh-ink-3);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.vy-hud-sync-label { color: var(--vyh-ink-3); }
+.vy-hud-sync-val {
+  min-width: 38px;
+  font-family: var(--vyh-num);
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  color: var(--vyh-ink-1);
+  text-align: right;
+}
+.vy-hud-sync-bar {
+  width: clamp(72px, 7.6vw, 112px);
+  height: 2px;
+  background: rgba(232, 233, 234, 0.16);
+}
+.vy-hud-sync-fill {
+  display: block;
+  width: calc(var(--vy-sync, 0) * 100%);
+  height: 100%;
+  background: var(--vyh-ink-1);
+  box-shadow: 0 0 8px rgba(232, 233, 234, 0.45);
+}
+
+/* ══ 12. 两侧竖向遥测流（素材 A 的 TTY0 / UTF-8 · LF / 13L；缓慢上移） ══ */
+.vy-hud-side {
+  position: absolute;
+  top: 22%;
+  height: 56%;
+  width: 16px;
+  opacity: 0;
+  pointer-events: none;
+  color: rgba(163, 166, 170, 0.55);
+}
+.vy-hud-side-l { left: calc(50% - clamp(300px, 34vmin, 400px)); }
+.vy-hud-side-r { right: calc(50% - clamp(300px, 34vmin, 400px)); }
+.vy-hud-side-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, transparent,
+    rgba(232, 233, 234, 0.20) 12%, rgba(232, 233, 234, 0.20) 88%, transparent);
+}
+.vy-hud-side-ticks { position: absolute; inset: 0; }
+.vy-hud-side-tick {
+  position: absolute;
+  left: 50%;
+  width: 5px;
+  height: 1px;
+  background: rgba(232, 233, 234, 0.28);
+}
+.vy-hud-side-tick.is-major { width: 9px; background: rgba(232, 233, 234, 0.52); }
+.vy-hud-side-l .vy-hud-side-tick { transform: translateX(-100%); }
+.vy-hud-side-stream {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% + 7px);
+  width: 12px;
+  overflow: hidden;
+}
+.vy-hud-side-r .vy-hud-side-stream { left: auto; right: calc(50% + 7px); }
+.vy-hud-side-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  white-space: nowrap;
+  font: 8px/1 var(--vyh-label);
+  letter-spacing: 0.18em;
+  will-change: transform;
+}
+.vy-hud-side-packet {
+  position: absolute;
+  left: 50%;
+  width: 5px;
+  height: 14px;
+  margin-left: -2.5px;
+  background: rgba(232, 233, 234, 0.55);
+  box-shadow: 0 0 7px rgba(232, 233, 234, 0.4);
+}
+
+/* ══ 13. P4：core 的环在字标后方以 ~7% 透明度回归一次（8.6 后淡出） ══════ */
+.vy-hud-echo {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: clamp(900px, 148vmin, 1500px);
+  height: clamp(900px, 148vmin, 1500px);
+  transform: translate3d(-50%, -50%, 0);
+  opacity: 0;
+  pointer-events: none;
+  will-change: opacity;
+}
+.vy-hud-echo-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  color: var(--vyh-ink-1);
+}
+/* 暗描 + 亮线：在亮地球与暗太空上都可读的"雕刻线" */
+.vy-hud-echo-cross-dark,
+.vy-hud-echo-ring-dark,
+.vy-hud-echo-dash-dark {
+  fill: none;
+  stroke: rgba(2, 4, 9, 0.92);
+  stroke-width: 3.4;
+}
+.vy-hud-echo-cross-light,
+.vy-hud-echo-ring-light,
+.vy-hud-echo-dash-light {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.92);
+  stroke-width: 1.1;
+}
+.vy-hud-echo-ring-mid { stroke-width: 3.0; }
+.vy-hud-echo-ring-mid.vy-hud-echo-ring-light { stroke-width: 1; }
+.vy-hud-echo-ring-in { stroke-width: 2.6; }
+.vy-hud-echo-ring-in.vy-hud-echo-ring-light { stroke-width: 0.9; }
+.vy-hud-echo-dash {
+  fill: none;
+  stroke: rgba(232, 233, 234, 0.9);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 12;
+  transform-box: view-box;
+  transform-origin: 400px 400px;
+  will-change: transform;
+}
+
+/* ── 14. 终帧锁版：紧凑两行 meta（P4；填进 #vyLockupMeta） ────────────── */
+/* #vyLockupMeta 的显隐/位移由 splash.css 的 .vy-lockup.is-on 管，这里只排内容。
+   两行 grid：① 月相 + 日期/时间 ② 宿主 facts + SYNC 100%。
+   字号 ≤ clamp(8px,1.15vmin,12px)，行高 1.5，单行 nowrap + ellipsis，
+   总高 ≤ 2 行，避免压到 #vyLockup 里的鱼标/字标区域。 */
+.vy-hud-lockup {
+  width: 100%;
+  pointer-events: none;
+}
+.vy-hud-lock {
+  display: grid;
+  grid-template-columns: minmax(0, auto);
+  grid-auto-rows: auto;
+  justify-content: center;
+  justify-items: center;
+  row-gap: clamp(2px, 0.4vmin, 5px);
+  width: 100%;
+  padding: clamp(2px, 0.4vmin, 5px) clamp(8px, 1.6vmin, 22px);
+  /* 终帧叠在地球亮部上：正文小字用极淡的深空托底 + 暗描边保可读性，不加整块面板 */
+  background: radial-gradient(ellipse 58% 150% at 50% 50%,
+    rgba(4, 7, 14, 0.46), rgba(4, 7, 14, 0.28) 58%, rgba(4, 7, 14, 0) 82%);
+  font: 400 clamp(8px, 1.15vmin, 12px)/1.5 var(--vyh-label);
+  letter-spacing: 0.06em;
+  color: rgba(184, 187, 191, 0.95);
+  text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(2, 4, 9, 0.9), 0 0 14px rgba(4, 7, 14, 0.85);
+}
+.vy-hud-lock-row {
+  display: block;
+  max-width: 100%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+.vy-hud-lock-moon {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: clamp(6px, 1.1vmin, 14px);
+  vertical-align: middle;
+}
+.vy-hud-lock-moon svg { display: block; width: 13px; height: 13px; }
+.vy-hud-lock-moon-ring { fill: none; stroke: rgba(232, 233, 234, 0.24); stroke-width: 0.8; }
+.vy-hud-lock-moon-disc { fill: none; stroke: rgba(232, 233, 234, 0.4); stroke-width: 0.8; }
+.vy-hud-lock-moon-lit { fill: rgba(232, 233, 234, 0.85); }
+.vy-hud-lock-moon-name { color: rgba(232, 233, 234, 0.82); letter-spacing: 0.08em; }
+.vy-hud-lock-date {
+  display: inline;
+  font-family: var(--vyh-date);
+  font-weight: 700;
+  font-size: clamp(11px, 1.55vmin, 17px);
+  color: var(--vyh-cream);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.vy-hud-lock-sep { color: rgba(241, 230, 210, 0.36); font-weight: 400; margin: 0 0.35em; }
+.vy-hud-lock-clock { letter-spacing: 0.08em; }
+.vy-hud-lock-dot { color: rgba(133, 136, 140, 0.7); margin: 0 0.55em; }
+.vy-hud-lock-fact { display: inline; white-space: nowrap; }
+.vy-hud-lock-fact-k {
+  font-weight: 400;
+  color: rgba(133, 136, 140, 0.95);
+  letter-spacing: 0.1em;
+  margin-right: 0.4em;
+}
+.vy-hud-lock-fact-v { font-style: normal; color: rgba(232, 233, 234, 0.92); letter-spacing: 0.05em; }
+.vy-hud-lock-sync { display: inline; white-space: nowrap; }
+.vy-hud-lock-sync-k { font-weight: 400; color: rgba(133, 136, 140, 0.95); letter-spacing: 0.1em; margin-right: 0.4em; }
+.vy-hud-lock-sync-v {
+  font-family: var(--vyh-num);
+  font-style: normal;
+  font-size: 1.15em;
+  letter-spacing: 0.04em;
+  color: var(--vyh-cream);
+}
+
+/* ── 15. 降级：减弱动态 / 极窄屏 ───────────────────────────────────────── */
+.vy-hud[data-reduced="1"] .vy-hud-win,
+.vy-hud[data-reduced="1"] .vy-hud-grid,
+.vy-hud[data-reduced="1"] .vy-hud-daybar,
+.vy-hud[data-reduced="1"] .vy-hud-sync,
+.vy-hud[data-reduced="1"] .vy-hud-scan,
+.vy-hud[data-reduced="1"] .vy-hud-core,
+.vy-hud[data-reduced="1"] .vy-hud-band,
+.vy-hud[data-reduced="1"] .vy-hud-side,
+.vy-hud[data-reduced="1"] .vy-hud-echo {
+  display: none;
+}
+html.vy-reduced .vy-hud-grid { opacity: 0 !important; }
+
+@media (max-width: 1100px) {
+  .vy-hud-daybar { width: min(62vw, 620px); }
+  .vy-hud-daybar-pct { display: none; }
+  .vy-hud-lock { letter-spacing: 0.04em; }
+  .vy-hud-core { width: clamp(640px, 86vmin, 900px); height: clamp(640px, 86vmin, 900px); }
+  .vy-hud-side { display: none; }
+  .vy-hud-band { width: min(38vw, 620px); }
+}
+@media (max-width: 860px), (orientation: portrait) {
+  .vy-hud { --vyh-gx: clamp(12px, 2.2vw, 22px); --vyh-gy-top: clamp(48px, 6.4vh, 64px); --vyh-gy-bot: clamp(44px, 5.8vh, 60px); }
+  .vy-hud-win-tl, .vy-hud-win-tr { width: min(46vw, 260px); }
+  .vy-hud-win-bl, .vy-hud-win-br { width: min(47vw, 268px); }
+  .vy-hud-win-tr { height: clamp(168px, 23vh, 224px); }
+  .vy-hud-daybar { width: 76vw; top: clamp(18px, 2.6vh, 26px); }
+  .vy-hud-daybar-label, .vy-hud-daybar-time { display: none; }
+  .vy-hud-tel-read { font-size: 8px; }
+  .vy-hud-moon svg { width: 36px; height: 36px; }
+  .vy-hud-log-line { grid-template-columns: 20px 0 22px minmax(0, 1fr); }
+  .vy-hud-log-t { display: none; }
+  .vy-hud-lock-moon { margin-right: 4px; }
+  .vy-hud-lock-moon-name { display: none; }
+  .vy-hud-lock-dot { margin: 0 0.32em; }
+  .vy-hud-core { width: 74vmin; height: 74vmin; top: 45%; }
+  .vy-hud-core-label { display: none; }
+  .vy-hud-core-wordmark { letter-spacing: 0.22em; text-indent: 0.22em; }
+  .vy-hud-side { display: none; }
+  /* 竖屏/窄屏：底部控制带只占两块下窗之间的缝，字号收一档 */
+  .vy-hud-band { width: 35vw; gap: 2px; }
+  .vy-hud-band-audio-label, .vy-hud-band-peak { font-size: 7px; letter-spacing: 0.06em; }
+  .vy-hud-band-coords { font-size: 8px; letter-spacing: 0.04em; }
+  .vy-hud-sync { font-size: 7.5px; letter-spacing: 0.1em; gap: 4px; }
+  .vy-hud-sync-val { font-size: 10px; min-width: 26px; }
+  .vy-hud-sync-bar { width: 34px; }
+  .vy-hud-echo { width: 172vmin; height: 172vmin; }
+}
+/* 手机竖屏（<860 宽）：两块下窗之间的缝太窄，控制带只保留 SYNC 读数 */
+@media (max-width: 860px) and (orientation: portrait) {
+  .vy-hud-band { width: auto; }
+  .vy-hud-band-audio, .vy-hud-band-coords { display: none; }
+}

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "name": "dsh-startup-vyron",
+  "version": "0.2.1",
+  "tag": "v0.2.1",
+  "asset": null,
+  "distribution": "source",
+  "mediaIncluded": false,
+  "install": {
+    "node": ">=20",
+    "profiles": [
+      "desktop",
+      "web"
+    ],
+    "format": "source-git",
+    "offline": true,
+    "note": "公开源码仓库：不含 3 张第三方壁纸底图（hero-4k/hero-2k/poster.webp）与 Anurati 字体（个人使用授权）；缺失时引擎自动降级为程序化深空渐变。完整资产口径见 ASSETS.md。"
+  }
+}

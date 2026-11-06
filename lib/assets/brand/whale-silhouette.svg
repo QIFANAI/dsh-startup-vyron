@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="140" viewBox="0 0 280 140" fill="none" role="img" aria-label="VYRON starwhale swimming silhouette">
+	<title>VYRON starwhale silhouette</title>
+	<desc>以 DSH 官方鱼标为母本重绘的游动姿态：头右尾左，背鳍/尾鳍/胸鳍分层可分离，纯 path（眼与嘴为 evenodd 镂空），无滤镜、无外链、可内联。尾鳍铰点 (52,68)，胸鳍铰点 (240,88)。</desc>
+	<!-- 背鳍：画在身体之前，只露出背脊上方的一小片 -->
+	<g id="whale-dorsal">
+		<path id="dorsal" fill="currentColor" d="M154 30C152 17 142 13 135 22C141 22 147 26 151 33Z"/>
+	</g>
+	<!-- 尾鳍：铰点 (52,68)，JS 用 rotate(a 52 68) 驱动摆尾（3 次） -->
+	<g id="whale-tail">
+		<path id="tail" fill="currentColor" d="M56 62C46 52 34 40 26 28C22 20 12 22 12 32C12 43 22 56 36 66C24 70 14 80 10 92C7 102 15 110 22 102C32 90 44 78 56 74Z"/>
+	</g>
+	<!-- 胸鳍：铰点 (240,88)，JS 用 rotate(a 240 88) 驱动划水；画在身体之前，根部落进身体 -->
+	<g id="whale-fin">
+		<path id="fin" fill="currentColor" d="M240 84C226 82 208 90 192 104C182 114 172 124 178 132C184 139 196 128 208 116C220 104 234 96 246 94C254 93 252 84 240 84Z"/>
+	</g>
+	<!-- 身体：吻端 → 背脊 → 细尾柄；fill-rule=evenodd 让眼、嘴成为镂空（纯 path，不依赖底色） -->
+	<g id="whale-body">
+		<path id="body" fill="currentColor" fill-rule="evenodd" d="M262 46C254 34 240 27 222 23C198 18 170 20 144 26C118 32 94 42 76 52C64 60 56 64 50 68C47 69 46 70 46 71C46 72 47 73 50 74C58 80 68 88 82 96C100 107 122 114 148 116C174 118 200 112 220 101C236 92 248 83 255 76C260 71 263 66 264 61C265 55 264 50 262 46ZM242 51A3.4 3.4 0 1 0 242 57.8A3.4 3.4 0 1 0 242 51ZM262 62C252 68 238 73 226 74C238 76 252 70 263 64Z"/>
+		<!-- 腹面微光层：对应官方鱼标的浅色腹甲；JS/CSS 可单独调透明度做呼吸微光 -->
+		<path id="belly" fill="currentColor" fill-opacity="0.26" d="M262 64C256 76 244 88 230 97C214 107 196 112 180 113C192 102 208 92 224 82C240 72 254 65 260 60C262 57 264 59 262 64Z"/>
+	</g>
+</svg>

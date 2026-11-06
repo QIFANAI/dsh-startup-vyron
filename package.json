@@ -1,0 +1,75 @@
+{
+  "name": "dsh-startup-vyron",
+  "version": "0.2.1",
+  "private": true,
+  "description": "VYRON 星海鲸航 — DSH 启动动画 + UI 皮肤整合插件：CMD\\LN 终端 HUD × 轨道地球 4K 底板，大白鱼穿越星海锁定 DEEPSEEK HARNESS 字标，程序化音轨 + 四档星海皮肤。公开源码仓库不含第三方壁纸素材与 Anurati 字体，缺失时按降级链运行。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "startup",
+    "splash",
+    "boot-animation",
+    "vyron",
+    "starwhale",
+    "skin",
+    "glass",
+    "theme",
+    "audio"
+  ],
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "preview",
+    "locale",
+    "test",
+    "icon.svg",
+    "cordis.patch.yml",
+    "README.md",
+    "INSTALL.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+    "ASSETS.md",
+    "docs/*.md"
+  ],
+  "scripts": {
+    "test": "node test/smoke-host.mjs && node test/smoke-splash.mjs && node test/smoke-client.mjs && node test/smoke-audio.mjs && node test/smoke-assets.mjs && node test/smoke-preview.mjs",
+    "assets:manifest": "python scripts/build-manifest.py",
+    "assets:check": "python scripts/build-manifest.py --check",
+    "audio:build": "python scripts/make-audio.py",
+    "check:public": "node scripts/check-public.mjs"
+  },
+  "license": "MIT",
+  "author": "QIFANAI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QIFANAI/dsh-startup-vyron.git"
+  },
+  "homepage": "https://github.com/QIFANAI/dsh-startup-vyron#readme",
+  "bugs": {
+    "url": "https://github.com/QIFANAI/dsh-startup-vyron/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  }
+}

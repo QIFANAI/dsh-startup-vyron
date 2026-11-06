@@ -1,0 +1,107 @@
+{
+  "name": "dsh-startup-vyron",
+  "generatedAt": "2026-11-06T08:09:58+0800",
+  "root": "lib/assets",
+  "fileCount": 15,
+  "totalBytes": 2299356,
+  "files": [
+    {
+      "path": "audio/handoff.wav",
+      "kind": "audio",
+      "bytes": 255824,
+      "sha256": "5c2e46350d2128c3a64ebf5bd98b3a1802b4a0796b760681de4bba41f4136bbf",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "seconds": 1.45
+    },
+    {
+      "path": "audio/vyron-boot.wav",
+      "kind": "audio",
+      "bytes": 1834604,
+      "sha256": "d5dd49c2939ced5c09087584932cf27bda3603e07eca4d950a349a1963067e96",
+      "channels": 2,
+      "sampleRate": 44100,
+      "bits": 16,
+      "seconds": 10.4
+    },
+    {
+      "path": "brand/lockup.svg",
+      "kind": "vector",
+      "bytes": 15005,
+      "sha256": "206098862bf3370e597d14076b426aa1f87d80920fa28a94039d56288e80a473"
+    },
+    {
+      "path": "brand/whale-official.svg",
+      "kind": "vector",
+      "bytes": 3634,
+      "sha256": "9e983b4f649c25c6ca0623a50be1a6e705fd8f49f756638b980fa13b40575ab6"
+    },
+    {
+      "path": "brand/whale-silhouette.svg",
+      "kind": "vector",
+      "bytes": 2103,
+      "sha256": "b1f8486d9ac035d11a5cc913d0897e43539f9bef77de71e8b2f2111f286770a4"
+    },
+    {
+      "path": "brand/whale.svg",
+      "kind": "vector",
+      "bytes": 3601,
+      "sha256": "ea4ff2cd4c8e37423ae93ddd77826b0b631831e244f60adcb29a3151c5631e29"
+    },
+    {
+      "path": "brand/wordmark.svg",
+      "kind": "vector",
+      "bytes": 15077,
+      "sha256": "d0ecc5b1857877410229aa2a14d00b984424b307b5a077b964dd7cb1a19e7d3b"
+    },
+    {
+      "path": "fonts/Quicksand-Bold.otf",
+      "kind": "font",
+      "bytes": 29324,
+      "sha256": "2c81dd94ebab720f768b88de0e4ec953a5528685b64b1b9a0902835f39facf83"
+    },
+    {
+      "path": "fonts/jetbrains-mono-400.woff2",
+      "kind": "font",
+      "bytes": 21088,
+      "sha256": "7c53386f55c866c1b4c9309c4bcf74eda10896aab3a1780b0af5cc4976e27a27"
+    },
+    {
+      "path": "fonts/jetbrains-mono-500.woff2",
+      "kind": "font",
+      "bytes": 21820,
+      "sha256": "4765dee1c0be507cde85c3de952bb24707b798f0e4002c360b9434d66c8bbc3c"
+    },
+    {
+      "path": "fonts/montserrat-medium.woff2",
+      "kind": "font",
+      "bytes": 62148,
+      "sha256": "8a81ca6f05cb6831d5487e4b287ce5a625a718c39226b736f155900adc394166"
+    },
+    {
+      "path": "fonts/noto-sans-jp-500.woff2",
+      "kind": "font",
+      "bytes": 6560,
+      "sha256": "07aa2129518262c77c261053727db756c06dca0eee51f25f9bbeab406df0f4d0"
+    },
+    {
+      "path": "fonts/noto-sans-jp-900.woff2",
+      "kind": "font",
+      "bytes": 6224,
+      "sha256": "a1f0dda7c3df504399f4c9d2e8894aedc7324656b6d7c7e46c31dce3f6deeacf"
+    },
+    {
+      "path": "fonts/oxanium-200.woff2",
+      "kind": "font",
+      "bytes": 8844,
+      "sha256": "ea72d580b6dd909b02b8bd85f8003af2269bbbc7a0b1f3739c43a4218e08d166"
+    },
+    {
+      "path": "fonts/share-tech-mono-400.woff2",
+      "kind": "font",
+      "bytes": 13500,
+      "sha256": "41e6b9f297f7d9a2df2aaa274092f76d2f72711a15ca455f7f4f4f92caf16b72"
+    }
+  ]
+}

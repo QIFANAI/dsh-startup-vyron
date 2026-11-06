@@ -1,0 +1,24 @@
+# ── 本地专用第三方素材（公开仓库不发布，见 ASSETS.md / THIRD-PARTY-NOTICES.md）──
+lib/assets/hero-4k.webp
+lib/assets/hero-2k.webp
+lib/assets/poster.webp
+lib/assets/fonts/Anurati-Regular.otf
+lib/assets/manifest.local.json
+
+# ── 本机交付件与构建产物 ──
+releases/
+*.tgz
+*.zip
+_build/
+_shots/
+_pkgtest/
+.verify/
+
+# ── 依赖 / 运行时 ──
+node_modules/
+package-lock.json
+
+# ── 杂项 ──
+*.log
+.DS_Store
+Thumbs.db
