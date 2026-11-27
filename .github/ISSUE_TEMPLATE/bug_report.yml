@@ -6,13 +6,13 @@ body:
   - type: markdown
     attributes:
       value: |
-        请先确认：本仓库是 **公开源码版**（不含第三方壁纸底图与 Anurati 字体，缺失时按降级链运行）。
-        完整版素材的本地恢复见 [ASSETS.md](../ASSETS.md)。提交前请先跑 `npm test`。
+        请先确认：本仓库自 **v0.2.2** 起为**完整素材开源版**（含第三方壁纸底图与 Anurati 字体）。
+        素材缺失或解码失败时插件按降级链运行。素材清单与来源见 [ASSETS.md](../ASSETS.md)。提交前请先跑 `npm test`。
   - type: input
     id: version
     attributes:
       label: 插件版本 / 提交
-      placeholder: 0.2.1 / <git commit>
+      placeholder: 0.2.2 / <git commit>
     validations:
       required: true
   - type: input
@@ -27,8 +27,8 @@ body:
     attributes:
       label: 素材状态
       options:
-        - 公开仓库默认（无第三方底板 / Anurati）
-        - 本地已恢复完整素材
+        - 完整素材（默认，随仓库 / Release 发布）
+        - 素材缺失或被裁剪（降级模式）
     validations:
       required: true
   - type: textarea

@@ -1,8 +1,4 @@
-# ── 本地专用第三方素材（公开仓库不发布，见 ASSETS.md / THIRD-PARTY-NOTICES.md）──
-lib/assets/hero-4k.webp
-lib/assets/hero-2k.webp
-lib/assets/poster.webp
-lib/assets/fonts/Anurati-Regular.otf
+# ── 本地资产清单缓存（素材本身自 v0.2.2 起随仓库发布，见 ASSETS.md）──
 lib/assets/manifest.local.json
 
 # ── 本机交付件与构建产物 ──

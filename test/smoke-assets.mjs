@@ -123,8 +123,8 @@ H.check('字体文件 ≥7 个且均非空', () => {
   for (const f of fonts) assert.ok(fileSize('lib/assets/fonts/' + f) > 1024, f + ' 过小')
 })
 
-/* ────────── [2] WebP 体积预算与像素尺寸（仅本地恢复素材后生效） ────────── */
-console.log('[2] WebP 体积与尺寸（公开仓库可缺，缺则 skip）')
+/* ────────── [2] WebP 体积预算与像素尺寸（素材随仓库发布，v0.2.2 起必测） ────────── */
+console.log('[2] WebP 体积与尺寸（完整素材版必测；缺失仅见于裁剪环境，缺则 skip）')
 const WEBP_BUDGET = [
   ['lib/assets/hero-4k.webp', 1.2 * 1024 * 1024, 3840, 2160],
   ['lib/assets/hero-2k.webp', 400 * 1024, 1920, 1080],
@@ -132,7 +132,7 @@ const WEBP_BUDGET = [
 ]
 for (const [rel, budget, width, height] of WEBP_BUDGET) {
   if (!fileExists(rel)) {
-    H.skip(path.basename(rel) + ' 体积/尺寸', '公开仓库不含第三方底图（本地恢复见 scripts/prepare-local-media.ps1）')
+    H.skip(path.basename(rel) + ' 体积/尺寸', '素材缺失（裁剪环境）；完整仓库自 v0.2.2 起随仓库发布')
     continue
   }
   const size = fileSize(rel)
@@ -231,10 +231,10 @@ for (const [dir, re, magic] of FONT_REQUIRED) {
   })
 }
 
-/* Anurati：个人使用授权字体，不随公开仓库分发；本地恢复后可选校验 */
+/* Anurati：个人使用授权字体；自 v0.2.2 起随仓库发布，缺失仅见于裁剪环境 */
 const anurati = fontFiles.find((f) => /^anurati/i.test(f))
 if (!anurati) {
-  H.skip('字体 anurati', '公开仓库不含 Anurati（Free for personal use，非 OFL）；本地恢复见 scripts/prepare-local-media.ps1')
+  H.skip('字体 anurati', '素材缺失（裁剪环境）；完整仓库自 v0.2.2 起随仓库发布')
 } else {
   H.check('字体 anurati 存在且为 OTTO', () => {
     const rel = 'lib/assets/fonts/' + anurati
@@ -333,7 +333,7 @@ H.check('manifest sha256 全量复核通过', () => {
     checked++
   }
   assert.equal(checked, manifest.fileCount, '复核文件数与 manifest.fileCount 不一致')
-  assert.ok(checked >= 15, '复核文件数 ' + checked + '（公开版 15，本地全量 19）')
+  assert.ok(checked >= 19, '复核文件数 ' + checked + '（完整素材版 19）')
 })
 H.check('manifest 图片带尺寸', () => {
   for (const entry of manifest.files.filter((f) => f.kind === 'image')) {

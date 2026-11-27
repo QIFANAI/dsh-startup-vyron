@@ -3,13 +3,13 @@
 DSH（DeepSeek Harness）**启动动画 + UI 皮肤整合插件**：把「CMD\LN 终端 HUD」与「轨道地球 4K 底板」两套视觉语言熔成一条启动序列，并给主界面换一套「星海终端」皮肤。
 
 > **公开仓库说明（重要）**
-> 本仓库是 `dsh-startup-vyron@0.2.1` 的**源码公开镜像**。**不包含** 3 张从 Wallpaper Engine 第三方壁纸提取的 4K 底板（`hero-4k/hero-2k/poster.webp`）与 `Anurati` 字体（个人使用授权，非 OFL）——这 4 个文件共约 960 KB，**不进公开仓库**。缺失时启动动画自动降级为「程序化深空渐变」，其余功能 100% 可用；拥有原素材的用户可在本地用 `scripts/prepare-local-media.ps1` 还原原画（仅限本机自用，不得再分发）。
-> 除这 4 个文件外，代码与 `v0.2.1` 完整版**逐行内容一致**（6 个原 CRLF 文本文件按 `.gitattributes` 归一为 LF，见 [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md) §2）；改动清单与验证证据见同文件。资产口径见 [ASSETS.md](ASSETS.md)，第三方许可见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+> 自 `dsh-startup-vyron@0.2.2` 起，本仓库与官方 GitHub Release **完整发布全部画面素材**：3 张从 Wallpaper Engine 第三方壁纸提取的 4K / 2K / 海报底板（`hero-4k.webp` / `hero-2k.webp` / `poster.webp`）与 `Anurati` 字体（作者 Emmeran Richard）随仓库提交，共约 960 KB，与维护者本机完整版**逐字节一致**；安装后即是完整观感。素材缺失或解码失败时启动动画仍自动降级为「程序化深空渐变」、字体栈回退，其余功能 100% 可用。
+> **素材权利归各自权利人，代码的 MIT 授权不覆盖素材**；再分发、商用或公开演示前请自行确认你有权使用。若你是权利人并认为随附发布不当，请开 Issue 联系维护者处理。资产清单与来源见 [ASSETS.md](ASSETS.md)，第三方许可与再分发边界见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。v0.2.1 的「源码镜像、不含第三方素材」口径已被本版取代，历史对照见 [docs/PUBLIC-RELEASE.md](docs/PUBLIC-RELEASE.md)。
 
 ## 功能
 
 - **素材 A**（`CMD\LN V1.03` 终端 HUD）：打字机开机日志、遥测 / 雷达、micrographics 微图形、月相、日轨条、session ledger、Oxanium / Share Tech Mono / JetBrains Mono 字体（canvas + CSS 重新实现）。
-- **素材 B**（三角洲行动 威龙 VYRON 动态版 4K，无字版）：3840×2160 轨道地球底板、星空、大气边缘光、平台反射、Anurati / Quicksand 排版——**底板画面不随本仓库发布**，缺失时降级。
+- **素材 B**（三角洲行动 威龙 VYRON 动态版 4K，无字版）：3840×2160 轨道地球底板、星空、大气边缘光、平台反射、Anurati / Quicksand 排版——**底板画面随仓库与 Release 完整发布**，缺失时降级为程序化深空渐变。
 - **DSH 元素**：官方大白鱼（FishLogo）作为主角横越星海、终帧化为官方鱼标 + `DEEPSEEK HARNESS` 字标 + 实时日期 / 时间 / 月相 / 宿主 facts。
 - **声音**：程序化合成 10.4 s 启动音轨（声呐 ping、终端蜂鸣、舷窗冲击、星海风噪、鲸叫 ×2、锁版和弦）+ 1.45 s 交接钟声（纯 numpy 合成，无第三方采样，随 MIT 发布）。
 
@@ -119,26 +119,26 @@ file:///<仓库路径>/preview/index.html
 | `lib/skin.css` | 四档 × 三主题皮肤 + 12 层动态背景 |
 | `lib/audio.js` / `lib/assets/audio/` | 音轨播放引擎 + 程序化合成 WAV |
 | `preview/` | 自包含启动页（index.html + js/{timeline,main,engine,hud,whale}.js + 4 个 css） |
-| `lib/assets/` | 公开资产（15 个）+ `manifest.json`；本地专用素材见 [ASSETS.md](ASSETS.md) |
-| `scripts/` | `build-manifest.py`（清单）、`make-audio.py`（音轨）、`check-public.mjs`（公开门禁）、`prepare-local-media.ps1`（本地恢复素材） |
+| `lib/assets/` | 完整资产（19 个：15 个自有 / OFL 资产 + 4 个第三方素材）+ `manifest.json`；口径见 [ASSETS.md](ASSETS.md) |
+| `scripts/` | `build-manifest.py`（清单）、`make-audio.py`（音轨）、`check-public.mjs`（公开门禁）、`prepare-local-media.ps1`（兼容保留：素材已随仓库发布，不再必需） |
 | `test/` | 六套冒烟断言（`npm test`） |
-| `docs/` | 设计 / 素材 / 动效 / 音轨 / 皮肤规格；`docs/PUBLIC-RELEASE.md` 公开版对照 |
+| `docs/` | 设计 / 素材 / 动效 / 音轨 / 皮肤规格；`docs/PUBLIC-RELEASE.md` 为 v0.2.1 历史对照 |
 | `licenses/` | 随仓库字体（SIL OFL 1.1）许可全文与版权汇总 |
 
 ## 开发与测试
 
 ```bash
 npm test              # 六套冒烟（host / splash / client / audio / assets / preview），零依赖
-npm run check:public  # 公开仓库门禁（无第三方素材 / 无本机绝对路径 / 无密钥 / manifest 一致）
+npm run check:public  # 公开门禁（无本机绝对路径 / 无密钥 / 版本一致 / 4 个第三方素材随仓库发布 / manifest 一致）
 ```
 
-- 干净仓库即可直接 `npm test`：本地专用素材缺失时相关断言按 `skip` 记录，不影响其余用例。
-- 恢复素材后再跑：`pwsh -File scripts/prepare-local-media.ps1 -SourceDir <dir>` → `python scripts/build-manifest.py` → `npm test`。
-- 版本：**0.2.1**；变更记录见 [CHANGELOG.md](CHANGELOG.md)。
+- `npm test` 以完整素材树为准（`lib/assets/manifest.json` 19 项，587 PASS / 0 SKIP）；4 个第三方素材的体积 / 像素尺寸 / MIME / 字体魔数都有断言。
+- `scripts/prepare-local-media.ps1` 为兼容保留：素材自 v0.2.2 起随仓库发布，正常克隆无需恢复步骤；仅在你自己裁掉了素材时才需要从本机素材目录恢复。
+- 版本：**0.2.2**；变更记录见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 许可
 
 - 代码 / 文档 / 程序化音轨：**MIT**（见 [LICENSE](LICENSE)）。
 - 随仓库字体：**SIL OFL 1.1**（见 [licenses/](licenses/)）。
 - DSH 品牌元素：商标 / 美术版权归 DeepSeek，标识用途，非 MIT。
-- 未随仓库发布的第三方素材：见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+- 随仓库与 Release 发布的第三方素材（3 张底板 + `Anurati-Regular.otf`）：权利归各自权利人，**MIT 不覆盖**；再分发前请自行确认授权，权威声明见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。

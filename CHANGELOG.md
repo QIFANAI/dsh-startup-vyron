@@ -1,5 +1,29 @@
 # 变更记录
 
+## 0.2.2 — 2026-11-27
+
+**完整素材开源版**：仓库与官方 Release 改为**完整发布全部 4 个第三方素材**（3 张 Wallpaper Engine
+底板 + `Anurati-Regular.otf`），与维护者本机完整版逐字节一致；素材缺失时的降级链保持不变。
+
+- **素材**：补入 `lib/assets/hero-4k.webp`（554,658 B）、`hero-2k.webp`（267,042 B）、
+  `poster.webp`（138,676 B）、`fonts/Anurati-Regular.otf`（8,176 B）；
+  `lib/assets/manifest.json` 由 15 项重建为 **19 项 / 3,267,907 B**。
+- **工程**：`.gitignore` 不再排除上述 4 个文件（保留 `manifest.local.json`、`releases/`、`_build/`
+  等本机产物排除）；`scripts/check-public.mjs` 删除「未跟踪第三方媒体」断言，改为断言 4 个素材
+  随仓库发布且被 manifest 覆盖，保留隐私路径 / 版本一致性 / 死链检查；`release.json` 重建为
+  `mediaIncluded: true` 并记录新 tgz 的 size / sha256 / sha512 / url。
+- **声明口径**：README / INSTALL / ASSETS / THIRD-PARTY-NOTICES / CONTRIBUTING / docs 同步为
+  「素材随仓库与 Release 完整发布；权利归各自权利人；代码 MIT 不覆盖素材；再分发前自行确认授权；
+  权利人异议可开 Issue」；v0.2.1 的「源码镜像、排除第三方素材」记录保留为历史。
+- **工具**：`scripts/prepare-local-media.ps1` 保留为兼容工具（完整素材随仓库发布后不再必需）。
+- **版本**：0.2.2（`package.json` / `lib/client.js` FALLBACK / `lib/splash.js` 兜底 / 测试断言同步）。
+- **验证**：`npm test` **587 PASS / 0 FAIL / 0 SKIP**（host 135 / splash 134 / client 62 /
+  audio 77 / assets 57 / preview 122）；`npm run check:public` 10/10 PASS；
+  `python scripts/build-manifest.py --check` PASS（19 files / 3.12 MB）；`npm pack` 产出
+  `dsh-startup-vyron-0.2.2.tgz`（约 3.41 MB / 63 文件），`tar -tzf` 确认含 4 个素材，
+  `releases/SHA256SUMS` 已生成。
+- 本次只做本地 commit/tag，GitHub Release 资产由主线统一上传。
+
 ## 0.2.1-public — 2026-11-06（公开源码仓库）
 
 **把 0.2.1 完整版无损开源**：代码 / 文档 / 配置 / 预览页 / 四档皮肤 / 程序化音轨与完整版逐行内容一致（6 个原 CRLF 文本文件按 `.gitattributes` 归一为 LF）；

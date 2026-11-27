@@ -15,13 +15,13 @@ npm run check:public  # 公开仓库门禁（必须全绿）
 
 ## 素材边界（硬性）
 
-本仓库是**公开源码版**，以下文件**永不入库**（`.gitignore` 已忽略，`check:public` 会拦截）：
+自 v0.2.2 起，本仓库是**完整素材开源版**：`lib/assets/` 下全部素材随仓库与 Release 完整发布，不再排除第三方底板与字体。
 
-- `lib/assets/hero-4k.webp`、`hero-2k.webp`、`poster.webp`（第三方壁纸派生画面）
-- `lib/assets/fonts/Anurati-Regular.otf`（个人使用授权，非 OFL）
-
-插件在缺失这些文件时按既有降级链运行（见 [ASSETS.md](ASSETS.md)）。**不要**为了"补齐画面"把这些文件提交进 PR，
-也不要在 Issue / PR 中上传第三方素材或游戏截图。
+- 4 个第三方素材（`hero-4k.webp` / `hero-2k.webp` / `poster.webp` / `Anurati-Regular.otf`）已在仓库中，
+  `check:public` 会断言它们随仓库发布且被 `manifest.json` 覆盖；**不要从 PR 中删除这些文件**。
+- 这些素材的权利归各自权利人，代码的 MIT 授权不覆盖素材；插件在素材缺失时仍按既有降级链运行（见 [ASSETS.md](ASSETS.md)）。
+- 新增或替换第三方素材 / 字体必须先在 PR 中说明来源与许可，且许可必须允许再分发；
+  不要在 Issue / PR 中上传与本项目无关的第三方素材或游戏截图。
 
 ## 提交规范
 
@@ -35,4 +35,4 @@ npm run check:public  # 公开仓库门禁（必须全绿）
 ## 版本
 
 版本号在 `package.json` / `release.json` / `lib/client.js` 兜底 / `lib/splash.js` 兜底中保持一致；
-`CHANGELOG.md` 按 `0.x.y — 日期` 追加。发布走标签（`v0.2.1` 起），不发布含第三方素材的二进制包。
+`CHANGELOG.md` 按 `0.x.y — 日期` 追加。发布走标签（`v0.2.1` 起）；自 v0.2.2 起 Release 资产与仓库素材逐字节一致。

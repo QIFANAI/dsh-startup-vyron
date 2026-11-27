@@ -181,7 +181,7 @@ UI 皮肤不改宿主正文字体栈，只在 `.vy-hud-*` 装饰层使用上述�
 | `audio/handoff.wav` | 1.45s（v2.1 实测 255,824B，sha256 `5c2e4635…`） | ≤ 300KB | 同上 |
 | `manifest.json` | 全部资产 size/sha256/尺寸/时长 | — | `_tools/build-manifest.py` 生成 |
 
-素材合规：两份素材为 Wallpaper Engine 第三方素材（Steam 创意工坊），**仅本机自用**，不发布公共 registry、不二次分发；在 `THIRD-PARTY-NOTICES.md` 与 README 顶部写明。DSH 官方鱼标仅用于 DSH 界面装饰。
+素材合规：两份素材为 Wallpaper Engine 第三方素材（Steam 创意工坊），自 v0.2.2 起**随仓库与 Release 完整发布**；权利归各自权利人，代码 MIT 不覆盖素材，再分发前须自行确认授权；在 `THIRD-PARTY-NOTICES.md` 与 README 顶部写明。DSH 官方鱼标仅用于 DSH 界面装饰。
 
 ## 7. 模块契约（preview 启动页）
 

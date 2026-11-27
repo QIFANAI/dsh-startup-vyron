@@ -1,18 +1,19 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-  在本地恢复 4 个「本地专用」第三方素材（仅限合法持有原素材的用户）。
+  兼容保留：完整素材随仓库发布（v0.2.2 起）后，本脚本不再必需。
 
 .DESCRIPTION
-  公开仓库不含以下 4 个文件：
+  自 dsh-startup-vyron v0.2.2 起，以下 4 个第三方素材随仓库与官方 Release 完整发布，
+  正常克隆即可获得完整观感，无需运行本脚本：
     - lib/assets/hero-4k.webp   (3840x2160, 554,658 B)
     - lib/assets/hero-2k.webp   (1920x1080, 267,042 B)
     - lib/assets/poster.webp    (1280x720,  138,676 B)
     - lib/assets/fonts/Anurati-Regular.otf  (8,176 B)
 
-  本脚本从你**本机已有**的素材目录中逐文件 SHA256 校验后复制进仓库，并生成
-  `lib/assets/manifest.local.json`（仅本地使用，Git 已忽略）。
-  恢复后的素材仅限本机自用，禁止提交到仓库或再分发。
+  本脚本仅为兼容保留：当你使用的分发包裁掉了这 4 个文件、且你本机合法持有原素材时，
+  可从本机素材目录逐文件 SHA256 校验后复制进仓库，并生成 `lib/assets/manifest.local.json`
+  （仅本地使用，Git 已忽略）。素材权利归各自权利人，代码 MIT 不覆盖素材；再分发前请自行确认授权。
 
 .PARAMETER SourceDir
   含上述 4 个文件的目录（文件名需一致）。
@@ -76,7 +77,7 @@ foreach ($item in $Expected) {
 }
 
 Write-Host ''
-Write-Host '已恢复 4 个本地专用素材：'
+Write-Host '已从本机素材目录恢复 4 个文件（完整开源版正常克隆无需此步）：'
 $summary | Format-Table -AutoSize
 
 if (-not $SkipManifest) {
@@ -92,7 +93,7 @@ if (-not $SkipManifest) {
 
 Write-Host ''
 Write-Host '下一步：'
-Write-Host '  npm test                       # 16 个公开资产 + 4 个本地素材全部纳入校验'
-Write-Host '  npm run check:public           # ⚠ 本地恢复素材后不要运行用于推公开仓库的门禁'
+Write-Host '  npm test                       # 19 个资产（15 个自有/OFL + 4 个第三方）全部纳入校验'
+Write-Host '  npm run check:public           # 公开门禁：断言 4 个素材随仓库发布且 manifest 覆盖'
 Write-Host ''
-Write-Warning '这 4 个文件仅限你本机自用：不得提交到公开仓库、不得二次分发。'
+Write-Warning '本脚本为兼容保留：素材自 v0.2.2 起随仓库与 Release 发布；权利归各自权利人，再分发前请自行确认授权。'

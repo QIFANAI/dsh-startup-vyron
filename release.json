@@ -1,11 +1,14 @@
 {
   "schemaVersion": 1,
   "name": "dsh-startup-vyron",
-  "version": "0.2.1",
-  "tag": "v0.2.1",
-  "asset": null,
-  "distribution": "source",
-  "mediaIncluded": false,
+  "version": "0.2.2",
+  "tag": "v0.2.2",
+  "asset": "dsh-startup-vyron-0.2.2.tgz",
+  "size": 3408555,
+  "sha256": "77334fc72904ff464a5f575cbeb71507868ea47448854a57901d88717e12536d",
+  "sha512": "e4ff111de1404c40d3ecd27098a68ae17bb94285222e820981e9d6ff686de9a589ae933186a4c7d0a8923f50304d891a82b62dcd2b416e777933a65f4b3d3cc1",
+  "url": "https://github.com/QIFANAI/dsh-startup-vyron/releases/download/v0.2.2/dsh-startup-vyron-0.2.2.tgz",
+  "mediaIncluded": true,
   "install": {
     "node": ">=20",
     "profiles": [
@@ -14,6 +17,6 @@
     ],
     "format": "source-git",
     "offline": true,
-    "note": "公开源码仓库：不含 3 张第三方壁纸底图（hero-4k/hero-2k/poster.webp）与 Anurati 字体（个人使用授权）；缺失时引擎自动降级为程序化深空渐变。完整资产口径见 ASSETS.md。"
+    "note": "v0.2.2 完整素材开源版：tgz 含全部 19 个资产（含 3 张第三方壁纸底板与 Anurati 字体）；安装仍从源码仓库 clone 后 dsh plugin add，Release 资产用 SHA256SUMS 与 release.json 校验。"
   }
 }

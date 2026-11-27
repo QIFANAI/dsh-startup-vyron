@@ -223,7 +223,7 @@ const DEFAULTS = {
   glassTransparency: 50,
 }
 H.check('config GET ok', () => assert.equal(payload.ok, true))
-H.check('version 0.2.1', () => assert.equal(payload.version, '0.2.1'))
+H.check('version 0.2.2', () => assert.equal(payload.version, '0.2.2'))
 H.check('默认配置与 design-spec §8 全等', () => assert.deepEqual(payload.config, DEFAULTS))
 H.check('defaults 镜像', () => assert.deepEqual(payload.defaults, DEFAULTS))
 H.check('config 文件在 DSH_HOME 下', () => assert.ok(payload.file.startsWith(SMOKE_HOME), payload.file))
@@ -325,7 +325,7 @@ H.check('405 JSON 错误体', () => assert.equal(JSON.parse(r.body.toString('utf
 
 /* ─────────────────── [7] assets 前缀：HEAD / Range / 穿越守卫 / 416 */
 console.log('[7] assets 前缀')
-// 公开仓库不含第三方 4K 底板；大二进制 Range 断言改用随仓库发布的程序化音轨
+// 大二进制 Range 断言用随仓库发布的程序化音轨；第三方 4K 底板自 v0.2.2 起随仓库发布（见下方 WebP 契约）
 const BIN_ASSET = 'lib/assets/audio/vyron-boot.wav'
 const binSize = fs.statSync(path.join(PLUGIN_ROOT, BIN_ASSET)).size
 let heroSize = 0
@@ -356,7 +356,7 @@ H.check('完整资源 200 且长度一致', () => {
 r = await call('prefix /dsh-vyron/lib/assets', 'GET', undefined, '/dsh-vyron/' + BIN_ASSET, { Range: 'bytes=999999999-' })
 H.check('越界 Range → 416', () => assert.equal(r.statusCode, 416))
 
-/* 第三方 4K 底板仅在本地恢复后存在：有则补测 WebP MIME / 长度契约 */
+/* 第三方 4K 底板自 v0.2.2 起随仓库发布：完整仓库必测 WebP MIME / 长度契约（缺失仅见于裁剪环境） */
 const HERO4K = 'lib/assets/hero-4k.webp'
 if (fs.existsSync(path.join(PLUGIN_ROOT, HERO4K))) {
   heroSize = fs.statSync(path.join(PLUGIN_ROOT, HERO4K)).size
@@ -365,7 +365,7 @@ if (fs.existsSync(path.join(PLUGIN_ROOT, HERO4K))) {
   H.check('webp MIME image/webp', () => assert.equal(r.headers['Content-Type'], 'image/webp'))
   H.check('webp Content-Length 与磁盘一致', () => assert.equal(Number(r.headers['Content-Length']), heroSize))
 } else {
-  H.skip('4K 底板 WebP MIME / 长度（本地全量包）', '公开仓库不含第三方底图；本地恢复见 scripts/prepare-local-media.ps1')
+  H.skip('4K 底板 WebP MIME / 长度', '素材缺失（裁剪环境）；完整仓库自 v0.2.2 起随仓库发布')
 }
 
 r = await call('prefix /dsh-vyron/lib/assets', 'GET', undefined, '/dsh-vyron/lib/assets/../../../package.json')
@@ -427,7 +427,7 @@ H.check('注入 splash.js（defer）', () => assert.match(injected, /<script def
 H.check('注入 __DSH_VYRON__', () => assert.match(injected, /window\.__DSH_VYRON__=/))
 H.check('注入 __DSH_VYRON_FACTS__', () => assert.match(injected, /window\.__DSH_VYRON_FACTS__=/))
 H.check('注入 __DSH_VYRON_BOOT__', () => assert.match(injected, /window\.__DSH_VYRON_BOOT__="index"/))
-H.check('注入版本号', () => assert.match(injected, /window\.__DSH_VYRON_VERSION__="0\.2\.1"/))
+H.check('注入版本号', () => assert.match(injected, /window\.__DSH_VYRON_VERSION__="0\.2\.2"/))
 H.check('注入兜底时长 __DSH_VYRON_FALLBACK_MS__', () => assert.match(injected, /window\.__DSH_VYRON_FALLBACK_MS__=\d+/))
 H.check('注入配置含全部默认字段', () => {
   for (const [k, v] of Object.entries(DEFAULTS)) {

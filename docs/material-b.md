@@ -243,13 +243,14 @@
 
 1. **素材性质**：`3806012039`（威龙 VYRON 4K 动态壁纸）与 `3804048141`（CMD\LN 终端 HUD）均为
    **Wallpaper Engine（Steam 创意工坊）第三方素材**，著作权归原作者所有。
-2. **使用范围**：仅用于本机自用的 DSH 启动动画/皮肤（`dsh-startup-vyron` 本机 bundle）。
-3. **禁止事项**：不发布到公共 npm registry / 任何公共插件市场；不二次分发；不用于商业用途；
-   不以本插件为载体传播原始素材（`hero-*.webp`、`poster.webp`、scene 解包件均为本机派生，随包仅本地安装）。
+2. **使用范围**：用于 DSH 启动动画 / 皮肤（`dsh-startup-vyron`）；自 v0.2.2 起随仓库与官方 Release 完整发布。
+3. **再分发责任**：素材权利归各自权利人，代码的 MIT 授权不覆盖素材；再分发、商用或公开演示前请自行确认授权。
+   派生 WebP（`hero-*.webp`、`poster.webp`）随仓库与 Release 发布；`scene.pkg` 原始解包件不入库。
+   不发布到公共 npm registry / 公共插件市场，不以本插件名义主张素材权利。
 4. **DSH 官方元素**（鱼标、`deepseek / HARNESS` 字标、Montserrat 字体、DSH 蓝 `#4D6BFE`）仅用于 DSH 界面装饰，
    不代表 DeepSeek 官方发布物；字标矢量取自本机安装的 DSH（app.asar），不对外分发独立 SVG。
 5. **字体许可**：Quicksand = SIL OFL 1.1；Montserrat = SIL OFL 1.1（`_brand/dsh/.../Montserrat-OFL.txt`）；
-   Anurati = 素材作者随包附带；Oxanium / Share Tech Mono / JetBrains Mono = SIL OFL；Noto Sans JP = SIL OFL。
+   Anurati = 素材作者随包附带（Free for personal use，非 OFL）；Oxanium / Share Tech Mono / JetBrains Mono = SIL OFL；Noto Sans JP = SIL OFL。
 6. 上述条款须同时写入 `THIRD-PARTY-NOTICES.md` 与 `README.md` 顶部（由 Lead 汇总，whale-art 不写这两个文件）。
 
 ---

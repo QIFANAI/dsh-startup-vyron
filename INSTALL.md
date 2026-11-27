@@ -2,6 +2,7 @@
 
 ## 适用范围
 
+- 当前版本 **0.2.2**（完整素材随仓库与 Release 发布）。
 - Windows（桌面 `desktop` profile / `web` profile 通用）。
 - 启动动画在**页面加载时**注入播放；皮肤保存在配置里，刷新即生效。
 - 同一 profile **只能启用一个启动插件**（本插件与 `dsh-startup-elisa` / `dsh-startup-yomi` / `dsh-startup-moss` / `dsh-startup-screen` 互斥）。
@@ -61,21 +62,23 @@ plugin_manager set_plugin entryId="include:dsh-startup-elisa" enabled=false
 3. 任意键 / 点击 / 右上「跳过 SKIP」/ Esc 可跳过（设置里可关）。
 4. 完整退出后下次打开按 `mode` 决定是否重播（`session` 默认每个浏览器会话一次）。
 
-## 素材：公开仓库默认「降级模式」
+## 素材：完整随仓库与 Release 发布（v0.2.2 起）
 
-公开仓库不含 3 张第三方壁纸底图与 Anurati 字体（原因与清单见 [ASSETS.md](ASSETS.md)）。默认安装后：
+自 v0.2.2 起，仓库与官方 Release 完整包含 3 张第三方壁纸底板（`hero-4k` / `hero-2k` / `poster.webp`）与 `Anurati-Regular.otf`（清单、来源与字节数见 [ASSETS.md](ASSETS.md)）。克隆或下载安装后即是完整观感，**不需要任何额外恢复步骤**。
 
-- 启动动画照常播放，`breach` / `whale` 相位使用**程序化深空渐变**代替 4K 地球底板；
-- 终帧 / HUD 的 Anurati 字体回退到 `Quicksand` / `Montserrat` / `sans-serif`；
+- 底板文件缺失 / 被裁掉或解码失败时，`breach` / `whale` 相位自动降级为**程序化深空渐变**；
+- Anurati 缺失时终帧 / HUD 字体回退到 `Quicksand` / `Montserrat` / `sans-serif`；
 - 皮肤（四档 × 三主题）不受影响。
 
-若你合法持有原素材（Wallpaper Engine 订阅），可在本地恢复完整观感（**仅限本机自用，不得再分发**）：
+`scripts/prepare-local-media.ps1` 为**兼容保留**：完整素材随仓库发布后不再必需。只有当你使用的分发包裁掉了这 4 个文件、且你本机合法持有原素材时，才需要按 SHA256 校验恢复：
 
 ```powershell
 pwsh -File scripts/prepare-local-media.ps1 -SourceDir "<含 4 个素材文件的目录>"
 python scripts/build-manifest.py
 npm test
 ```
+
+素材权利归各自权利人，代码的 MIT 授权不覆盖素材；再分发前请自行确认授权，详见 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
 
 ## 验证安装是否成功
 
@@ -97,7 +100,7 @@ npm test
 - **皮肤没变化**：`skin` 是否为 `glass` / `full`；`/dsh-vyron/skin.css` 是否 200（F12 Network）；宿主升级后 CSS Modules 类名后缀变化可能让部分装饰选择器降级（配色 token 不受影响，console 会 warn）。
 - **玻璃变实心**：远程桌面 / 无 GPU / 浏览器不支持 `backdrop-filter` 时自动降级为实心（预期）。
 - **背景不动**：`skinMotion=false`、`reducedMotion=true`、页面在后台、或 CPU ≤ 4 线程会强制静态（预期）。
-- **地球底图是深空渐变**：公开仓库不含 4K 底板（见上文「素材」）；按 [ASSETS.md](ASSETS.md) 在本地恢复即可。
+- **地球底图是深空渐变**：`lib/assets/hero-4k.webp` 缺失、被裁掉或解码失败（见上文「素材」）；完整克隆应随仓库自带该文件，可用 `Get-FileHash` 对照 [ASSETS.md](ASSETS.md) 的 SHA-256。
 - **对比度不适**：调低通透度、换 `terra` / `abyss` 主题，或切 `accent` / `off`。
 - **与旧插件冲突**：按上文停用冲突插件后重启。
 
@@ -112,4 +115,4 @@ plugin_manager remove_bundle target="dsh-startup-vyron"
 
 ## 素材合规
 
-第三方素材仅用于本机界面装饰，不随公开仓库发布、不得二次分发；详见 [ASSETS.md](ASSETS.md) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。
+第三方素材随仓库与 Release 完整发布，权利归各自权利人；代码的 MIT 授权**不覆盖**素材，再分发、商用或公开演示前请自行确认授权。若你是权利人并认为随附发布不当，请开 Issue 联系维护者处理。详见 [ASSETS.md](ASSETS.md) 与 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)。

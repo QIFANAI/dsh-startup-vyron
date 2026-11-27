@@ -154,9 +154,9 @@
 
 ## 5. 合规声明
 
-1. **素材来源与分发**：Material A（`3804048141` CMD\LN V1.03）与 Material B（`3806012039` 威龙 VYRON 4K）均为 **Wallpaper Engine 第三方素材（Steam 创意工坊）**，按 design-spec §6 约定：**仅本机自用，不发布公共 registry、不二次分发**；`THIRD-PARTY-NOTICES.md` 与 README 顶部须写明。
+1. **素材来源与分发**：Material A（`3804048141` CMD\LN V1.03）与 Material B（`3806012039` 威龙 VYRON 4K）均为 **Wallpaper Engine 第三方素材（Steam 创意工坊）**。自 v0.2.2 起按 design-spec §6 口径：**素材随仓库与 Release 完整发布**，权利归各自权利人，代码 MIT 不覆盖素材，再分发前须自行确认授权；`THIRD-PARTY-NOTICES.md` 与 README 顶部须写明。不发布到公共 npm registry / 公共插件市场。
 2. **背景图**：素材 A 的 `assets/presets/*.jpg` 来自 Pixabay（Pixabay Content License，免归属），启动页**不打包、不使用**这 14 张图（HUD 是透明覆盖层，底板来自 Material B 的 4K 无字版）。
-3. **字体**：Oxanium / Share Tech Mono / JetBrains Mono / Noto Sans JP 均为 SIL OFL 1.1（OFL 文本随素材 A 的 `fonts/OFL-*.txt`）；Anurati / Quicksand-Bold 为 SIL OFL 1.1（随 Material B）。随包 `lib/assets/fonts/` 内分发，未修改字形。
+3. **字体**：Oxanium / Share Tech Mono / JetBrains Mono / Noto Sans JP 均为 SIL OFL 1.1（OFL 文本随素材 A 的 `fonts/OFL-*.txt`）；Quicksand-Bold 为 SIL OFL 1.1（随 Material B）；Anurati 为作者授权的 **Free for personal use**（非 OFL，随 Material B）。随包 `lib/assets/fonts/` 内分发，字形未修改。
 4. **月相数据**：算法移植自 Jean Meeus《Astronomical Algorithms》第 49 章（本地计算，不联网）；素材 A 的 USNO 在线数据源在启动页**未启用**。实现为独立重写，未复制原文件。
 5. **DSH 官方元素**：大白鱼鱼标、`DEEPSEEK HARNESS` 字标、DSH 蓝属 DSH 官方，仅用于 DSH 界面装饰（design-spec §0）；HUD 层不引用、不改宿主正文字体栈，字体只在 `.vy-hud*` 作用域生效。
 6. **代码来源**：`hud.js` / `hud.css` 为按视觉语言**重写**的启动页专用实现（不是壁纸工程的整包搬运）；引用了素材 A 的算法与图形语言（Meeus 月相、日轨/雷达/ledger/微图形构成），未引入 Wallpaper Engine 运行时依赖。

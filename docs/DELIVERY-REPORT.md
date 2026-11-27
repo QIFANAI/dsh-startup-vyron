@@ -1,5 +1,9 @@
 # VYRON · 星海鲸航 — 交付报告（v0.2.1 · Round2 细节精修 + 页面内全屏预览）
 
+> **历史记录（v0.2.1）**：本文是 v0.2.1 本机交付报告。自 **v0.2.2** 起素材策略已改为
+> **完整素材随仓库与 Release 发布**（见 [CHANGELOG.md](../CHANGELOG.md) 0.2.2、[ASSETS.md](../ASSETS.md)）；
+> 文中「本机自用 / 不二次分发」为 v0.2.1 当时口径，不再代表当前策略。
+
 > 生成时间：2026-11-03 14:2x（Asia/Shanghai）｜项目根：`<repo>`
 > v0.2.1 增量：新增**页面内全屏预览**（设置页「全屏预览」按钮 / 任意页面快捷键 **Ctrl+Alt+V** / `__DSH_VYRON_API__.preview()`）——直接在当前页面上按真实启动层播放一次（含交接回本页），实时套用草稿参数、不写配置。详见 `design-spec.md` §8.1、`CHANGELOG.md` 0.2.1。
 > 设计权威源：`docs/design-spec.md`（v0.2 增 §3.1 收束与交接）｜模块规格：`docs/{material-a,material-b,motion-spec,audio-spec,skin-spec}.md`
@@ -85,4 +89,4 @@ v0.1.0 交付后用户给出三张截图与听感反馈，本轮**只做细节�
 
 ## 8. 变更记录
 
-见 `CHANGELOG.md`（0.2.0 / 0.2.1 条目）与 `docs/design-spec.md` §3.1 / §8.1。第三方素材许可与合规见 `THIRD-PARTY-NOTICES.md`（本机自用，不二次分发）。
+见 `CHANGELOG.md`（0.2.0 / 0.2.1 条目）与 `docs/design-spec.md` §3.1 / §8.1。第三方素材许可与合规见 `THIRD-PARTY-NOTICES.md`（v0.2.2 起完整素材随仓库与 Release 发布，权利归各自权利人）。

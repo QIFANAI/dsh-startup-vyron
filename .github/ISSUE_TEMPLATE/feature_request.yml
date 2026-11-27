@@ -33,5 +33,5 @@ body:
     attributes:
       label: 确认
       options:
-        - label: 方案不要求把第三方壁纸 / 游戏素材、个人使用授权字体提交进仓库
+        - label: 方案不引入新的未授权第三方素材 / 字体（新增素材须说明来源与可再分发许可）
           required: true
